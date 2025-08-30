@@ -398,19 +398,76 @@
         fontRegular = await pdf.embedFont(StandardFonts.Helvetica);
         fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
       }
+      
 
-      // Logo
-      let logoImg = null;
-      try {
-        const resp = await fetch('./img/logo.png', { cache: 'force-cache' });
-        if (resp.ok) {
-          const bytes = await resp.arrayBuffer();
-          try { logoImg = await pdf.embedPng(bytes); } catch { logoImg = await pdf.embedJpg(bytes); }
+      
+      // ==== Logo laden (robust) ====
+        let logoImg = null;
+        let logoNaturalW = 0, logoNaturalH = 0;
+
+        try {
+          const logoURL = new URL('./img/logo.png', location.href).toString();
+          const resp = await fetch(logoURL, { cache: 'force-cache' });
+          if (resp.ok) {
+            const bytes = await resp.arrayBuffer();
+            try { logoImg = await pdf.embedPng(bytes); } catch { logoImg = await pdf.embedJpg(bytes); }
+            logoNaturalW = logoImg.width; logoNaturalH = logoImg.height;
+          } else {
+            console.warn('Logo konnte nicht geladen werden (HTTP):', resp.status);
+          }
+        } catch (e) {
+          console.warn('Logo konnte nicht geladen werden:', e);
         }
-      } catch (e) {
-        console.warn('Logo konnte nicht geladen werden:', e);
-      }
 
+        // ==== Header mit dynamischer Höhe ====
+        const drawHeader = () => {
+          const LOGO_MAX_W = 90;   // ~3.2 cm
+          const LOGO_MAX_H = 28;   // ~1.0 cm
+          const GAP = 8;
+
+          // Farbband oben
+          page.drawRectangle({ x: 0, y: PAGE_H - 6, width: PAGE_W, height: 6, color: COLOR_PRIMARY });
+
+          // Logo skalieren (Seitenverhältnis beibehalten), oben links
+          let logoW = 0, logoH = 0;
+          if (logoImg) {
+            const s = Math.min(1, LOGO_MAX_W / logoNaturalW, LOGO_MAX_H / logoNaturalH);
+            logoW = Math.max(0, logoNaturalW * s);
+            logoH = Math.max(0, logoNaturalH * s);
+            page.drawImage(logoImg, {
+              x: MARGIN,
+              y: PAGE_H - MARGIN - logoH + 6,  // leicht ins Farbband ziehen
+              width: logoW,
+              height: logoH
+            });
+          }
+
+          // Titel (rechts davon ausrichten, kollisionsfrei)
+          const title = 'Wohnungsabnahmeprotokoll';
+          const tSize = 18;
+          const tW = textW(title, tSize, true);
+          const titleY = PAGE_H - MARGIN - 10;
+          const titleXLeftLimit = MARGIN + (logoW ? (logoW + GAP) : 0);
+          const titleX = Math.max(titleXLeftLimit, PAGE_W - MARGIN - tW);
+          drawText(title, titleX, titleY, tSize, COLOR_PRIMARY_DARK, true);
+
+          // feine Linie unter Kopf; Unterkante = unterer Rand von Logo/Titel minus Luft
+          const logoBottom = logoW ? (PAGE_H - MARGIN - logoH + 6) : titleY;
+          const titleBottom = titleY - tSize;
+          const contentTopY = Math.min(logoBottom, titleBottom) - 8;
+
+          page.drawLine({
+            start: { x: MARGIN, y: contentTopY },
+            end:   { x: PAGE_W - MARGIN, y: contentTopY },
+            thickness: 0.5,
+            color: COLOR_BORDER
+          });
+
+          // Cursor unterhalb des höchsten Elements fortsetzen
+          cursorY = contentTopY - 10; // zusätzliche Luft
+        };
+
+      
       // ——— Helpers
       const newPage = () => pdf.addPage([PAGE_W, PAGE_H]);
       let page = newPage();
@@ -458,36 +515,6 @@
       const measureKVTableHeight = (rows) =>
         rows.reduce((sum, r) => sum + measureRowH(r[0], r[1]), 0) + 8;
 
-      // ——— Kopfbereich (Logo + Titel)
-      const drawHeader = () => {
-        const headerH = 46;
-        page.drawRectangle({ x: 0, y: PAGE_H - 6, width: PAGE_W, height: 6, color: COLOR_PRIMARY });
-
-        // Logo links
-        let logoW = 120, logoH = 40;
-        if (logoImg) {
-          const scale = 0.35 * PAGE_W / logoImg.width;
-          logoW = Math.min(140, logoImg.width * scale);
-          logoH = logoImg.height * (logoW / logoImg.width);
-          page.drawImage(logoImg, { x: MARGIN, y: PAGE_H - MARGIN - logoH + 6, width: logoW, height: logoH });
-        }
-
-        // Titel rechts
-        const title = 'Wohnungsabnahmeprotokoll';
-        const tSize = 18;
-        const tW = textW(title, tSize, true);
-        drawText(title, PAGE_W - MARGIN - tW, PAGE_H - MARGIN - 10, tSize, COLOR_PRIMARY_DARK, true);
-
-        // feine Linie unter Kopf
-        page.drawLine({
-          start: { x: MARGIN, y: PAGE_H - MARGIN - headerH },
-          end:   { x: PAGE_W - MARGIN, y: PAGE_H - MARGIN - headerH },
-          thickness: 0.5,
-          color: COLOR_BORDER
-        });
-
-        cursorY = PAGE_H - MARGIN - headerH - 10;
-      };
       drawHeader();
 
       // Abschnitts-Header (hell hinterlegt + linke Farbmarke)

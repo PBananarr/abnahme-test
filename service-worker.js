@@ -1,4 +1,4 @@
-const CACHE_NAME = 'abnahme-cache-v1';
+const CACHE_NAME = 'abnahme-cache-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const ASSETS = [
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './img/logo.png',
   './vendor/pdf-lib.min.js',   // optional: wird übersprungen, falls (noch) nicht vorhanden
   './fonts/DejaVuSans.ttf'     // optional: wird übersprungen, falls (noch) nicht vorhanden
 ];
