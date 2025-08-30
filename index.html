@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wohnungsabnahmeprotokoll</title>
+
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#0077b6" />
+  <link rel="stylesheet" href="./style.css" />
+
+  <!-- iOS PWA Meta -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+
+  <style>
+    /* Druckansicht etwas schmaler & ohne Buttons */
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #fff; }
+      .container { box-shadow: none; max-width: 100%; margin: 0; border-radius: 0; }
+      h1 { border: 0; padding-bottom: 0; margin-bottom: 10px; }
+      h2 { background: none; border: 0; padding-left: 0; }
+      .field-item { border: 0; background: transparent; padding: 0; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Wohnungsabnahmeprotokoll</h1>
+
+    <!-- Formular wird komplett durch JS gerendert -->
+    <form id="abnahme-form">
+      <div id="sections-root"></div>
+
+      <div class="no-print" style="display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;">
+        <!-- <button type="button" id="save-btn" class="submit-btn">Speichern</button> ###### wird vorerst nicht benötigt ###### -->
+        <button type="button" id="pdf-btn">Als PDF erzeugen</button>
+        <button type="button" id="reset-btn" style="background:#adb5bd;">Zurücksetzen</button>
+      </div>
+    </form>
+
+    <div id="submitted" class="submitted-data" style="display:none;"></div>
+  </div>
+
+  <!-- Reihenfolge wichtig: erst libs, dann Daten, dann Logik -->
+  <script src="./vendor/pdf-lib.min.js"></script>
+  <script src="./form_data.js"></script>
+  <script src="./form.js"></script>
+
+  <script>
+    // PWA Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .catch(err => console.log('SW Fehler', err));
+      });
+    }
+  </script>
+</body>
+</html>

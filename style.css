@@ -1,0 +1,160 @@
+/* Basislayout */
+body {
+    font-family: Arial, sans-serif;
+    background: #f0f2f5;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 900px;
+    margin: 30px auto;
+    background: white;
+    padding: 25px 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #0077b6;
+    padding-bottom: 10px;
+    color: #023e8a;
+}
+
+h2 {
+    text-align: center;
+    margin-top: 50px;
+    margin-bottom: 15px;
+    color: #03045e;
+    background: #f7faff;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+/* Form-Grid */
+.form-group {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    align-items: center;
+    gap: 10px 15px;
+    margin-bottom: 12px;
+}
+
+label {
+    font-weight: bold;
+}
+
+input, select, textarea {
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    width: 100%;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+/* Dynamische Felder */
+.field-selector {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.field-item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    padding: 8px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+
+.field-item label {
+    font-weight: normal;
+    white-space: nowrap;
+}
+
+/* Buttons */
+button {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    background: #0077b6;
+    color: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+button:hover {
+    background: #023e8a;
+}
+
+.remove-btn {
+    background: #e63946;
+    margin-left: auto;
+}
+
+.remove-btn:hover {
+    background: #b22222;
+}
+
+.submit-btn {
+    margin-top: 20px;
+    background: #2a9d8f;
+}
+
+.submit-btn:hover {
+    background: #1f776c;
+}
+
+/* Erfolgsbereich */
+.submitted-data {
+    margin-top: 30px;
+    padding: 15px;
+    background: #e8f5e9;
+    border: 1px solid #b2dfdb;
+    border-radius: 4px;
+}
+
+/* ------------------ Responsive ------------------ */
+
+/* Tablet */
+@media (max-width: 768px) {
+    .form-group {
+        grid-template-columns: 1fr;
+    }
+    .field-selector {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .add-btn {
+        width: 100%;
+    }
+    .remove-btn {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+
+/* Smartphone */
+@media (max-width: 480px) {
+    .container {
+        padding: 15px;
+    }
+    h1 {
+        font-size: 1.4rem;
+    }
+    h2 {
+        font-size: 1rem;
+    }
+}
