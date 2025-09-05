@@ -12,7 +12,7 @@ body {
     background: white;
     padding: 25px 30px;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 h1 {
@@ -46,7 +46,9 @@ label {
     font-weight: bold;
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
     padding: 6px 8px;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -133,13 +135,16 @@ button:hover {
     .form-group {
         grid-template-columns: 1fr;
     }
+
     .field-selector {
         flex-direction: column;
         align-items: stretch;
     }
+
     .add-btn {
         width: 100%;
     }
+
     .remove-btn {
         margin-left: 0;
         width: 100%;
@@ -151,9 +156,11 @@ button:hover {
     .container {
         padding: 15px;
     }
+
     h1 {
         font-size: 1.4rem;
     }
+
     h2 {
         font-size: 1rem;
     }

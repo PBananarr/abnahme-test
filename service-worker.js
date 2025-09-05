@@ -1,4 +1,4 @@
-const CACHE_NAME = 'abnahme-cache-v2';
+const CACHE_NAME = 'abnahme-cache-test-v1.0.0.';
 const ASSETS = [
   './',
   './index.html',
@@ -9,15 +9,21 @@ const ASSETS = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './img/logo.png',
-  './vendor/pdf-lib.min.js',   // optional: wird übersprungen, falls (noch) nicht vorhanden
-  './fonts/DejaVuSans.ttf'     // optional: wird übersprungen, falls (noch) nicht vorhanden
+  './vendor/pdf-lib.min.js',
+  './fonts/DejaVuSans.ttf'
 ];
+
+self.addEventListener('message', event => {
+  if (event.data === 'getVersion') {
+    event.source.postMessage({ type: 'version', version: CACHE_NAME });
+  }
+});
+
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
-    // jede Ressource einzeln versuchen – Fehler nicht abbrechen lassen
     await Promise.all(ASSETS.map(async (url) => {
       try {
         const res = await fetch(url, { cache: 'no-cache' });
@@ -53,7 +59,7 @@ self.addEventListener('fetch', (event) => {
       }
       return res;
     } catch (e) {
-      // Optional: Offline-Fallbacks (z.B. eine Offline-Seite) könnten hier geliefert werden.
+      // Optional: Offline-Fallbacks
       return new Response('Offline und Ressource nicht im Cache.', {
         status: 503,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' }

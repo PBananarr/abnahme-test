@@ -1,6 +1,6 @@
 {
   "name": "Wohnungsabnahmeprotokoll",
-  "short_name": "Abnahme",
+  "short_name": "Abnahmeformular",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

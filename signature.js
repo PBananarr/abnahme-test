@@ -1,4 +1,3 @@
-// Sehr leichte Signatur-Library (ohne Fremdabhängigkeiten)
 (function(){
   function SigPad(canvas){
     const ctx = canvas.getContext('2d');

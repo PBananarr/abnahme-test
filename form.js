@@ -63,7 +63,7 @@
       opt.textContent = o.label;
       opt.dataset.type = o.type || 'text';
       if (o.subfields) opt.dataset.subfields = JSON.stringify(o.subfields);
-      if (o.fields)    opt.dataset.fields    = JSON.stringify(o.fields);
+      if (o.fields) opt.dataset.fields = JSON.stringify(o.fields);
       sel.appendChild(opt);
     });
 
@@ -219,7 +219,7 @@
     const select = form.querySelector('select[name="ohne_beanstandungen"]');
     if (!select) return;
 
-    // Container, in den wir das dynamische Feld einfügen (direkt NACH der Select-Zeile)
+    // Dynamisches Feld bei Auswahl "Nein"
     const selectRow = select.closest('.form-group');
 
     const ensureMaengelTextarea = () => {
@@ -257,7 +257,7 @@
 
     select.addEventListener('change', onChange);
 
-    // Initialzustand (z.B. nach Restore aus LocalStorage)
+    // Initialzustand
     onChange();
   })();
 
@@ -287,7 +287,7 @@
 
     try {
       localStorage.setItem('abnahme_form_data', JSON.stringify(entries));
-    } catch (e) {}
+    } catch (e) { }
   });
 
   // ---------- Reset ----------
@@ -296,7 +296,7 @@
     form.reset();
     [...root.querySelectorAll('[id^="fields-container-"]')].forEach(c => c.innerHTML = '');
     out.style.display = 'none';
-    try { localStorage.removeItem('abnahme_form_data'); } catch (e) {}
+    try { localStorage.removeItem('abnahme_form_data'); } catch (e) { }
     // Dynamisches Feld nach Reset entfernen
     document.querySelector('#maengel_dynamic_wrap')?.remove();
   });
@@ -335,7 +335,7 @@
         const ta = form.querySelector('textarea[name="maengel_liste"]');
         if (ta && typeof data['maengel_liste'] === 'string') ta.value = data['maengel_liste'];
       }
-    } catch (e) {}
+    } catch (e) { }
   })();
 
   // ---------- Echte PDF mit pdf-lib ----------
@@ -348,17 +348,55 @@
     const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
     // ==== Farb-/Layout-Vorgaben ====
-    const COLOR_PRIMARY = rgb(0x00/255, 0x77/255, 0xb6/255);      // #0077b6
-    const COLOR_PRIMARY_DARK = rgb(0x02/255, 0x3e/255, 0x8a/255); // #023e8a
-    const COLOR_SECTION_BG = rgb(0xf7/255, 0xfa/255, 0xff/255);   // #f7faff
-    const COLOR_BORDER = rgb(0xdd/255, 0xdd/255, 0xdd/255);       // #dddddd
-    const COLOR_TEXT = rgb(0,0,0);
+    const COLOR_PRIMARY = rgb(0x00 / 255, 0x77 / 255, 0xb6 / 255);      // #0077b6
+    const COLOR_PRIMARY_DARK = rgb(0x02 / 255, 0x3e / 255, 0x8a / 255); // #023e8a
+    const COLOR_SECTION_BG = rgb(0xf7 / 255, 0xfa / 255, 0xff / 255);   // #f7faff
+    const COLOR_BORDER = rgb(0xdd / 255, 0xdd / 255, 0xdd / 255);       // #dddddd
+    const COLOR_TEXT = rgb(0, 0, 0);
+
+    // dezentes Grau für Footer-Text
+    const COLOR_MUTED = rgb(0.45, 0.45, 0.45);
+
+    // --- Footer: Trennlinie + Seitenzahl "Seite XX von YY" (rechts unten) ---
+    const drawFooterForAllPages = (pdf, font) => {
+      const pages = pdf.getPages();
+      const fs = 9;                 // Schriftgröße Footer
+      const textY = 10;             // Y-Position der Seitenzahl
+      const lineY = MARGIN - 6;     // Trennlinie knapp unterhalb des Inhaltsbereichs
+
+      pages.forEach((p, i) => {
+        const total = pages.length;
+        // Format Seite XX von YY
+        const cur = String(i + 1).padStart(2, '0');
+        const tot = String(total).padStart(2, '0');
+        const label = `Seite ${cur} von ${tot}`;
+
+        // leichte graue Trennlinie im Fußbereich
+        p.drawLine({
+          start: { x: MARGIN, y: lineY },
+          end: { x: PAGE_W - MARGIN, y: lineY },
+          thickness: 0.5,
+          color: COLOR_BORDER
+        });
+
+        // Seitenzahl unten rechts
+        const tw = font.widthOfTextAtSize(label, fs);
+        p.drawText(label, {
+          x: PAGE_W - MARGIN - tw,
+          y: textY,
+          size: fs,
+          font,
+          color: COLOR_MUTED
+        });
+      });
+    };
+
 
     const PAGE_W = 595;  // A4
     const PAGE_H = 842;
     const MARGIN = 36;   // ~13mm
     const COL_LABEL_W = 210;
-    const COL_VALUE_W = PAGE_W - 2*MARGIN - COL_LABEL_W;
+    const COL_VALUE_W = PAGE_W - 2 * MARGIN - COL_LABEL_W;
 
     try {
       // ---- Daten einsammeln (Mehrfach-Unterstützung) ----
@@ -376,13 +414,13 @@
       const isOn = x => asStr(x).toLowerCase() === 'on';
 
       // ISO-zu-DE-Datum
-        const isISODate = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
-        const toDE = s => {
-          const str = asStr(s);
-          if (!isISODate(str)) return str;
-          const [y, m, d] = str.split('-');
-          return `${d}.${m}.${y}`;
-        };
+      const isISODate = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
+      const toDE = s => {
+        const str = asStr(s);
+        if (!isISODate(str)) return str;
+        const [y, m, d] = str.split('-');
+        return `${d}.${m}.${y}`;
+      };
 
 
       // ---- PDF anlegen
@@ -398,83 +436,100 @@
         fontRegular = await pdf.embedFont(StandardFonts.Helvetica);
         fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
       }
-      
 
-      
+
       // ==== Logo laden (robust) ====
-        let logoImg = null;
-        let logoNaturalW = 0, logoNaturalH = 0;
+      let logoImg = null;
+      let logoNaturalW = 0, logoNaturalH = 0;
 
-        try {
-          const logoURL = new URL('./img/logo.png', location.href).toString();
-          const resp = await fetch(logoURL, { cache: 'force-cache' });
-          if (resp.ok) {
-            const bytes = await resp.arrayBuffer();
-            try { logoImg = await pdf.embedPng(bytes); } catch { logoImg = await pdf.embedJpg(bytes); }
-            logoNaturalW = logoImg.width; logoNaturalH = logoImg.height;
-          } else {
-            console.warn('Logo konnte nicht geladen werden (HTTP):', resp.status);
+      try {
+        // Cache-Busting gegen SW/HTTP-Caches
+        const logoURL = new URL(`./img/logo.png?v=${Date.now()}`, location.href).toString();
+        const resp = await fetch(logoURL, { cache: 'no-store' });
+        if (resp.ok) {
+          const bytes = await resp.arrayBuffer();
+          try {
+            logoImg = await pdf.embedPng(bytes);
+          } catch {
+            logoImg = await pdf.embedJpg(bytes);
           }
-        } catch (e) {
-          console.warn('Logo konnte nicht geladen werden:', e);
+          logoNaturalW = logoImg.width;
+          logoNaturalH = logoImg.height;
+        } else {
+          console.warn('Logo konnte nicht geladen werden (HTTP):', resp.status);
+        }
+      } catch (e) {
+        console.warn('Logo konnte nicht geladen werden:', e);
+      }
+
+      // ==== Header mit dynamischer Höhe ====
+      const drawHeader = () => {
+        const LOGO_MAX_W = 90;   // ~3.2 cm
+        const LOGO_MAX_H = 28;   // ~1.0 cm
+        const GAP = 8;
+
+        // Farbband oben
+        page.drawRectangle({ x: 0, y: PAGE_H - 6, width: PAGE_W, height: 6, color: COLOR_PRIMARY });
+
+        // Logo skalieren, oben links
+        let logoW = 0, logoH = 0;
+        if (logoImg) {
+          const LOGO_H = 20;
+          const scale  = LOGO_H / logoImg.height;
+          const LOGO_W = logoImg.width * scale;
+
+          // Titel-Geometrie (wie bisher)
+          const tSize = 18;
+          const titleBaselineY = PAGE_H - MARGIN - 10;
+          const ASCENT = 0.8, DESCENT = 0.2;
+          const titleCenterY = titleBaselineY + (ASCENT - DESCENT) * tSize / 2 - DESCENT * tSize;
+
+          // Feinjustierung: positiver Wert verschiebt nach oben
+          const LOGO_OFFSET_Y = 3;   // ← hier 2–4 px ausprobieren
+
+          const yLogo = titleCenterY - LOGO_H / 2 + LOGO_OFFSET_Y;
+
+          page.drawImage(logoImg, {
+            x: MARGIN,
+            y: yLogo,
+            width: LOGO_W,
+            height: LOGO_H
+          });
         }
 
-        // ==== Header mit dynamischer Höhe ====
-        const drawHeader = () => {
-          const LOGO_MAX_W = 90;   // ~3.2 cm
-          const LOGO_MAX_H = 28;   // ~1.0 cm
-          const GAP = 8;
+        // Titel, rechts von Logo, kollisionsfrei)
+        const title = 'Wohnungsabnahmeprotokoll';
+        const tSize = 18;
+        const tW = textW(title, tSize, true);
+        const titleY = PAGE_H - MARGIN - 10;
+        const titleXLeftLimit = MARGIN + (logoW ? (logoW + GAP) : 0);
+        const titleX = Math.max(titleXLeftLimit, PAGE_W - MARGIN - tW);
+        drawText(title, titleX, titleY, tSize, COLOR_PRIMARY_DARK, true);
 
-          // Farbband oben
-          page.drawRectangle({ x: 0, y: PAGE_H - 6, width: PAGE_W, height: 6, color: COLOR_PRIMARY });
+        // feine Linie unter Kopf; Unterkante = unterer Rand von Logo/Titel minus Luft
+        const logoBottom = logoW ? (PAGE_H - MARGIN - logoH + 6) : titleY;
+        const titleBottom = titleY - tSize;
+        const contentTopY = Math.min(logoBottom, titleBottom) - 8;
 
-          // Logo skalieren (Seitenverhältnis beibehalten), oben links
-          let logoW = 0, logoH = 0;
-          if (logoImg) {
-            const s = Math.min(1, LOGO_MAX_W / logoNaturalW, LOGO_MAX_H / logoNaturalH);
-            logoW = Math.max(0, logoNaturalW * s);
-            logoH = Math.max(0, logoNaturalH * s);
-            page.drawImage(logoImg, {
-              x: MARGIN,
-              y: PAGE_H - MARGIN - logoH + 6,  // leicht ins Farbband ziehen
-              width: logoW,
-              height: logoH
-            });
-          }
+        page.drawLine({
+          start: { x: MARGIN, y: contentTopY },
+          end: { x: PAGE_W - MARGIN, y: contentTopY },
+          thickness: 0.5,
+          color: COLOR_BORDER
+        });
 
-          // Titel (rechts davon ausrichten, kollisionsfrei)
-          const title = 'Wohnungsabnahmeprotokoll';
-          const tSize = 18;
-          const tW = textW(title, tSize, true);
-          const titleY = PAGE_H - MARGIN - 10;
-          const titleXLeftLimit = MARGIN + (logoW ? (logoW + GAP) : 0);
-          const titleX = Math.max(titleXLeftLimit, PAGE_W - MARGIN - tW);
-          drawText(title, titleX, titleY, tSize, COLOR_PRIMARY_DARK, true);
+        // Cursor unterhalb des höchsten Elements fortsetzen
+        cursorY = contentTopY - 10; // zusätzliche Luft
+      };
 
-          // feine Linie unter Kopf; Unterkante = unterer Rand von Logo/Titel minus Luft
-          const logoBottom = logoW ? (PAGE_H - MARGIN - logoH + 6) : titleY;
-          const titleBottom = titleY - tSize;
-          const contentTopY = Math.min(logoBottom, titleBottom) - 8;
 
-          page.drawLine({
-            start: { x: MARGIN, y: contentTopY },
-            end:   { x: PAGE_W - MARGIN, y: contentTopY },
-            thickness: 0.5,
-            color: COLOR_BORDER
-          });
-
-          // Cursor unterhalb des höchsten Elements fortsetzen
-          cursorY = contentTopY - 10; // zusätzliche Luft
-        };
-
-      
       // ——— Helpers
       const newPage = () => pdf.addPage([PAGE_W, PAGE_H]);
       let page = newPage();
       let cursorY = PAGE_H - MARGIN;
 
-      const textW = (t, size=10, bold=false) => (bold ? fontBold : fontRegular).widthOfTextAtSize(t, size);
-      const drawText = (t, x, y, size=10, color=COLOR_TEXT, bold=false) => {
+      const textW = (t, size = 10, bold = false) => (bold ? fontBold : fontRegular).widthOfTextAtSize(t, size);
+      const drawText = (t, x, y, size = 10, color = COLOR_TEXT, bold = false) => {
         page.drawText(t, { x, y, size, font: bold ? fontBold : fontRegular, color });
       };
       const ensureSpace = (need) => {
@@ -485,17 +540,31 @@
           cursorY -= 16; // etwas Luft
         }
       };
-      const wrap = (txt, maxW, size=10, bold=false) => {
-        const words = String(txt||'').split(/\s+/);
-        const lines = [];
-        let line = '';
-        for (const w of words) {
-          const test = line ? line + ' ' + w : w;
-          if (textW(test, size, bold) <= maxW) line = test;
-          else { if (line) lines.push(line); line = w; }
+
+      // Enter-Zeilenumbrüche
+      const wrap = (txt, maxW, size = 10, bold = false) => {
+        const paras = String(txt ?? '')
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n')
+          .split('\n');
+
+        const out = [];
+        for (const para of paras) {
+          if (para === '') { out.push(''); continue; }  // leere Zeile erhalten
+          const words = para.split(/\s+/);
+          let line = '';
+          for (const w of words) {
+            const test = line ? line + ' ' + w : w;
+            if (textW(test, size, bold) <= maxW) {
+              line = test;
+            } else {
+              if (line) out.push(line);
+              line = w;
+            }
+          }
+          out.push(line);
         }
-        if (line) lines.push(line);
-        return lines;
+        return out;
       };
 
       // --- Layout-Messung für saubere Seitenumbrüche ---
@@ -503,13 +572,14 @@
       const FONT_SIZE = 10;
       const SECTION_HEADER_H = 22 + 6; // drawSectionHeader: Höhe + Abstand
 
+
       const measureRowH = (lab, val) => {
-        const labLines = wrap(lab, COL_LABEL_W - 2*CELL_PAD, FONT_SIZE);
+        const labLines = wrap(lab, COL_LABEL_W - 2 * CELL_PAD, FONT_SIZE);
         const valLines = Array.isArray(val)
-          ? val.flatMap(v => wrap(String(v), COL_VALUE_W - 2*CELL_PAD, FONT_SIZE))
-          : wrap(val, COL_VALUE_W - 2*CELL_PAD, FONT_SIZE);
+          ? val.flatMap(v => wrap(String(v), COL_VALUE_W - 2 * CELL_PAD, FONT_SIZE))
+          : wrap(val, COL_VALUE_W - 2 * CELL_PAD, FONT_SIZE);
         const lines = Math.max(labLines.length, valLines.length);
-        return lines * (FONT_SIZE + 3) + 2*CELL_PAD;
+        return lines * (FONT_SIZE + 3) + 2 * CELL_PAD;
       };
 
       const measureKVTableHeight = (rows) =>
@@ -523,7 +593,7 @@
         ensureSpace(h + 10);
         page.drawRectangle({
           x: MARGIN, y: cursorY - h,
-          width: PAGE_W - 2*MARGIN, height: h,
+          width: PAGE_W - 2 * MARGIN, height: h,
           color: COLOR_SECTION_BG
         });
         page.drawRectangle({
@@ -533,11 +603,11 @@
         cursorY -= h + 6;
       };
 
-      // 2-Spalten-Tabelle (ohne eigenes Ensure – wir messen vorher)
+      // 2-Spalten-Tabelle
       const drawKVTable = (rows) => {
         if (!rows.length) return;
 
-        const tableX = MARGIN, tableW = PAGE_W - 2*MARGIN;
+        const tableX = MARGIN, tableW = PAGE_W - 2 * MARGIN;
         let y = cursorY;
 
         rows.forEach(([lab, val]) => {
@@ -551,7 +621,7 @@
 
           // Label
           let txtY = y - CELL_PAD - FONT_SIZE;
-          wrap(lab, COL_LABEL_W - 2*CELL_PAD, FONT_SIZE).forEach(line => {
+          wrap(lab, COL_LABEL_W - 2 * CELL_PAD, FONT_SIZE).forEach(line => {
             drawText(line, tableX + CELL_PAD, txtY, FONT_SIZE, COLOR_TEXT);
             txtY -= (FONT_SIZE + 3);
           });
@@ -559,8 +629,8 @@
           // Value
           txtY = y - CELL_PAD - FONT_SIZE;
           const valLines = Array.isArray(val)
-            ? val.flatMap(v => wrap(String(v), COL_VALUE_W - 2*CELL_PAD, FONT_SIZE))
-            : wrap(val, COL_VALUE_W - 2*CELL_PAD, FONT_SIZE);
+            ? val.flatMap(v => wrap(String(v), COL_VALUE_W - 2 * CELL_PAD, FONT_SIZE))
+            : wrap(val, COL_VALUE_W - 2 * CELL_PAD, FONT_SIZE);
           valLines.forEach(line => {
             drawText(line, tableX + COL_LABEL_W + CELL_PAD, txtY, FONT_SIZE, COLOR_TEXT);
             txtY -= (FONT_SIZE + 3);
@@ -587,7 +657,7 @@
         return i === 0 ? v : undefined;
       };
 
-      // ===== Inhalt aus deinen form_sections =====
+      // ===== Inhalt aus form_sections =====
       window.form_sections.forEach(section => {
         const rows = [];
 
@@ -609,7 +679,6 @@
               if (liste) {
                 rows.push(['Die Wohnung weist folgende Mängel auf', liste]);
               }
-              // Danach folgen die restlichen (statischen) Felder wie gewohnt
             }
           }
         }
@@ -617,12 +686,11 @@
         // feste Felder
         if (!(isMaengel && skipOtherFieldsInThisSection)) {
           (section.fields || []).forEach(f => {
-            // Die Select-Zeile der Mängelregelung wurde oben bereits behandelt
             if (isMaengel && f.name === 'ohne_beanstandungen') return;
 
             const v = data[f.name];
             if (Array.isArray(v)) {
-              v.forEach((vv, i) => { if (asStr(vv)) rows.push([`${f.label} (${i+1})`, toDE(vv)]); });
+              v.forEach((vv, i) => { if (asStr(vv)) rows.push([`${f.label} (${i + 1})`, toDE(vv)]); });
             } else if (asStr(v)) {
               rows.push([f.label, toDE(v)]);
             }
@@ -644,7 +712,7 @@
                 if (sf.type === 'checkbox') { if (isOn(s)) inner.push(`${sf.label}: Ja`); }
                 else if (s) inner.push(`${sf.label}: ${toDE(s)}`);
               });
-              if (inner.length) rows.push([maxN > 1 ? `${opt.label} (${i+1})` : opt.label, inner]);
+              if (inner.length) rows.push([maxN > 1 ? `${opt.label} (${i + 1})` : opt.label, inner]);
             }
           } else if (fld.length) {
             const maxN = Math.max(0, ...fld.map(f => countOf(f.name)));
@@ -656,12 +724,12 @@
                 if (f.type === 'checkbox') { if (isOn(s)) inner.push(`${f.label}: Ja`); }
                 else if (s) inner.push(`${f.label}: ${s}`);
               });
-              if (inner.length) rows.push([maxN > 1 ? `${opt.label} (${i+1})` : opt.label, inner]);
+              if (inner.length) rows.push([maxN > 1 ? `${opt.label} (${i + 1})` : opt.label, inner]);
             }
           } else {
             const v = data[opt.name];
             if (Array.isArray(v)) {
-              v.forEach((vv, i) => { if (asStr(vv)) rows.push([`${opt.label} (${i+1})`, vv]); });
+              v.forEach((vv, i) => { if (asStr(vv)) rows.push([`${opt.label} (${i + 1})`, vv]); });
             } else if (asStr(v)) {
               rows.push([opt.label, v]);
             }
@@ -672,7 +740,7 @@
 
         // Einleitungszeile
         const introMap = {
-          'Schlüsselrückgabe': 'Der Mieter hat folgende Schlüssel zurückgegeben:',
+          //'Schlüsselrückgabe': 'Der Mieter hat folgende Schlüssel zurückgegeben:',
           'Zählerstände': 'Folgende Zählerstände wurden bei der Wohnungsabnahme von beiden Parteien abgelesen:',
           'Neue Anschrift des Mieters': 'Dem Mieter ist bekannt, dass die Betriebskostenrechnung an seine neue Anschrift übersandt wird und etwaige Nachzahlungen zu begleichen sind.'
         };
@@ -694,16 +762,16 @@
       if (asStr(rawDate)) {
         try {
           const d = new Date(rawDate);
-          const dd = String(d.getDate()).padStart(2,'0');
-          const mm = String(d.getMonth()+1).padStart(2,'0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
           const yyyy = d.getFullYear();
           header = `Dresden, den ${dd}.${mm}.${yyyy}`;
-        } catch (e) {}
+        } catch (e) { }
       }
 
       const gap = 16;
       const fieldH = 90;
-      const halfW = (PAGE_W - 2*MARGIN - gap) / 2;
+      const halfW = (PAGE_W - 2 * MARGIN - gap) / 2;
 
       // VORAB-Platz für Unterschriften prüfen
       const needSig = SECTION_HEADER_H + measureKVTableHeight([['', header]]) + fieldH + 30;
@@ -715,8 +783,8 @@
 
       const topY = cursorY - 6;
       const drawSignBox = (x, y, w, h, legend) => {
-        const PAD_TOP = 12;      // mehr Luft nach oben -> Text ragt nicht über den Rahmen
-        const PAD_X   = 14;      // seitlicher Innenabstand
+        const PAD_TOP = 12;      
+        const PAD_X = 14;     
         const fs = 9;
 
         // Rahmen
@@ -728,11 +796,11 @@
         // Label-Zeilen mit Padding umbrechen
         const lines = wrap(legend, w - 2 * PAD_X, fs, true);
 
-        // Start-Baseline deutlich unter dem oberen Rand
-        let baseline = y - PAD_TOP - fs; // Baseline; Oberkante bleibt sicher frei
+        // Start-Baseline
+        let baseline = y - PAD_TOP - fs; 
         lines.forEach(line => {
           const lw = textW(line, fs, true);
-          const cx = x + (w - lw) / 2;   // echte Zentrierung innerhalb des gesamten Feldes
+          const cx = x + (w - lw) / 2;   
           drawText(line, cx, baseline, fs, COLOR_TEXT, true);
           baseline -= (fs + 2);
         });
@@ -741,16 +809,19 @@
         const signLineY = y - h + 26;
         page.drawLine({
           start: { x: x + 20, y: signLineY },
-          end:   { x: x + w - 20, y: signLineY },
+          end: { x: x + w - 20, y: signLineY },
           thickness: 0.8, color: COLOR_TEXT
         });
       };
 
-      drawSignBox(MARGIN,               topY, halfW, fieldH, 'Unterschrift des Vermieters bzw. seines Bevollmächtigten');
+      drawSignBox(MARGIN, topY, halfW, fieldH, 'Unterschrift des Vermieters bzw. seines Bevollmächtigten');
       drawSignBox(MARGIN + halfW + gap, topY, halfW, fieldH, 'Unterschrift des Mieters bzw. seines Bevollmächtigten');
       cursorY = topY - fieldH - 30;
 
       // ===== Ausgabe
+      // Footer (Trennlinie + Seitenzahlen)
+      drawFooterForAllPages(pdf, fontRegular);
+
       const pdfBytes = await pdf.save();
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const filename = 'Wohnungsabnahmeprotokoll.pdf';
@@ -765,11 +836,20 @@
         document.body.appendChild(a); a.click(); a.remove();
         URL.revokeObjectURL(url);
       }
-        } catch (err) {
+    } catch (err) {
       console.error(err);
       alert('PDF-Erstellung fehlgeschlagen.');
     }
   });
+
+  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+  navigator.serviceWorker.controller.postMessage('getVersion');
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data?.type === 'version') {
+      document.getElementById('version-info').textContent = 'Version: ' + e.data.version;
+    }
+  });
+}
 
 })();
 

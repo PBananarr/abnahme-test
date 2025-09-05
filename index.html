@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -17,12 +18,38 @@
   <style>
     /* Druckansicht etwas schmaler & ohne Buttons */
     @media print {
-      .no-print { display: none !important; }
-      body { background: #fff; }
-      .container { box-shadow: none; max-width: 100%; margin: 0; border-radius: 0; }
-      h1 { border: 0; padding-bottom: 0; margin-bottom: 10px; }
-      h2 { background: none; border: 0; padding-left: 0; }
-      .field-item { border: 0; background: transparent; padding: 0; }
+      .no-print {
+        display: none !important;
+      }
+
+      body {
+        background: #fff;
+      }
+
+      .container {
+        box-shadow: none;
+        max-width: 100%;
+        margin: 0;
+        border-radius: 0;
+      }
+
+      h1 {
+        border: 0;
+        padding-bottom: 0;
+        margin-bottom: 10px;
+      }
+
+      h2 {
+        background: none;
+        border: 0;
+        padding-left: 0;
+      }
+
+      .field-item {
+        border: 0;
+        background: transparent;
+        padding: 0;
+      }
     }
   </style>
 </head>
@@ -38,11 +65,13 @@
       <div class="no-print" style="display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;">
         <!-- <button type="button" id="save-btn" class="submit-btn">Speichern</button> ###### wird vorerst nicht benötigt ###### -->
         <button type="button" id="pdf-btn">Als PDF erzeugen</button>
-        <button type="button" id="reset-btn" style="background:#adb5bd;">Zurücksetzen</button>
+        <button type="button" id="reset-btn">Zurücksetzen</button>
       </div>
     </form>
 
     <div id="submitted" class="submitted-data" style="display:none;"></div>
+    <div id="version-info" style="font-size:10px; color:#888; margin-top:20px; text-align:right;"></div>
+
   </div>
 
   <!-- Reihenfolge wichtig: erst libs, dann Daten, dann Logik -->
@@ -60,4 +89,5 @@
     }
   </script>
 </body>
+
 </html>
