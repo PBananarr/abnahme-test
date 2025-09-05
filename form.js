@@ -11,6 +11,39 @@
     return n;
   };
 
+  // simple uid counter for input IDs
+  let __uid = 0;
+  const uid = (prefix = 'f') => `${prefix}_${(++__uid).toString(36)}`;
+
+  // iPad-/Tastatur-Hilfen + dezimale Eingaben
+  const applyInputHints = (input, name, type) => {
+    const nm = String(name || '').toLowerCase();
+
+    const isDecimal =
+      /betrag|summe|rate|eur|stand/.test(nm) ||             // generisch: *betrag, *summe, *rate, *eur, *stand
+      /_stand$/.test(nm);                                   // z.B. warmwasser_stand, strom_stand
+
+    // Felder, die rein ganzzahlig sind (Zählwerte, IDs)
+    const isInteger =
+      /^anzahl_/.test(nm) ||                                // z.B. anzahl_hausschluessel
+      /(_nr$|_nummer$)/.test(nm);                           // z.B. hausschluessel_nummer
+
+    if (isDecimal) {
+      if (input.tagName === 'INPUT' && input.type === 'number') input.type = 'text';
+      input.inputMode = 'decimal';       // iOS zeigt , an; . lässt sich trotzdem eingeben
+      input.autocomplete = 'off';
+      return;
+    }
+
+    // 2) Integerfelder: echte numerische Tastatur + pattern für reine Ziffern
+    if (type === 'number' || isInteger) {
+      input.inputMode = 'numeric';
+      input.pattern = '\\d*';
+      input.autocomplete = 'off';
+      return;
+    }
+  };
+
   const addLabelInput = (wrap, label, name, type = 'text', preset, options) => {
     const row = el('div', 'form-group');
     const l = el('label');
@@ -475,7 +508,7 @@
         let logoW = 0, logoH = 0;
         if (logoImg) {
           const LOGO_H = 40;
-          const scale  = LOGO_H / logoImg.height;
+          const scale = LOGO_H / logoImg.height;
           const LOGO_W = logoImg.width * scale;
 
           // Titel-Geometrie (wie bisher)
@@ -783,8 +816,8 @@
 
       const topY = cursorY - 6;
       const drawSignBox = (x, y, w, h, legend) => {
-        const PAD_TOP = 12;      
-        const PAD_X = 14;     
+        const PAD_TOP = 12;
+        const PAD_X = 14;
         const fs = 9;
 
         // Rahmen
@@ -797,10 +830,10 @@
         const lines = wrap(legend, w - 2 * PAD_X, fs, true);
 
         // Start-Baseline
-        let baseline = y - PAD_TOP - fs; 
+        let baseline = y - PAD_TOP - fs;
         lines.forEach(line => {
           const lw = textW(line, fs, true);
-          const cx = x + (w - lw) / 2;   
+          const cx = x + (w - lw) / 2;
           drawText(line, cx, baseline, fs, COLOR_TEXT, true);
           baseline -= (fs + 2);
         });
@@ -843,13 +876,13 @@
   });
 
   if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-  navigator.serviceWorker.controller.postMessage('getVersion');
-  navigator.serviceWorker.addEventListener('message', e => {
-    if (e.data?.type === 'version') {
-      document.getElementById('version-info').textContent = 'Version: ' + e.data.version;
-    }
-  });
-}
+    navigator.serviceWorker.controller.postMessage('getVersion');
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'version') {
+        document.getElementById('version-info').textContent = 'Version: ' + e.data.version;
+      }
+    });
+  }
 
 })();
 
