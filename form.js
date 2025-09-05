@@ -548,7 +548,7 @@
           const titleCenterY = titleBaselineY + (ASCENT - DESCENT) * tSize / 2 - DESCENT * tSize;
 
           // Feinjustierung: positiver Wert verschiebt nach oben
-          const LOGO_OFFSET_Y = 3;   // ← hier 2–4 px ausprobieren
+          const LOGO_OFFSET_Y = 6;
 
           const yLogo = titleCenterY - LOGO_H / 2 + LOGO_OFFSET_Y;
 
@@ -916,4 +916,5 @@
   }
 
 })();
+
 
