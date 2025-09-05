@@ -537,27 +537,26 @@
         // Logo skalieren, oben links
         let logoW = 0, logoH = 0;
         if (logoImg) {
-          // alternative skalierung wie in deinem Snippet, aber Werte in logoW/H übernehmen
-          const LOGO_H = Math.min(LOGO_MAX_H, logoImg.height); // Schutz
+          const LOGO_H = 20;
           const scale = LOGO_H / logoImg.height;
           const LOGO_W = logoImg.width * scale;
 
-          logoW = Math.min(LOGO_MAX_W, LOGO_W);
-          logoH = LOGO_H;
-
+          // Titel-Geometrie (wie bisher)
           const tSize = 18;
           const titleBaselineY = PAGE_H - MARGIN - 10;
           const ASCENT = 0.8, DESCENT = 0.2;
           const titleCenterY = titleBaselineY + (ASCENT - DESCENT) * tSize / 2 - DESCENT * tSize;
 
-          const LOGO_OFFSET_Y = 6;
-          const yLogo = titleCenterY - logoH / 2 + LOGO_OFFSET_Y;
+          // Feinjustierung: positiver Wert verschiebt nach oben
+          const LOGO_OFFSET_Y = 3;   // ← hier 2–4 px ausprobieren
+
+          const yLogo = titleCenterY - LOGO_H / 2 + LOGO_OFFSET_Y;
 
           page.drawImage(logoImg, {
             x: MARGIN,
             y: yLogo,
-            width: logoW,
-            height: logoH
+            width: LOGO_W,
+            height: LOGO_H
           });
         }
 
