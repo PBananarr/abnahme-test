@@ -1,4 +1,4 @@
-const CACHE_NAME = 'abnahme-cache-test-v1.0.5.';
+const CACHE_NAME = 'abnahme-cache-test-v1.0.6.';
 const ASSETS = [
   './',
   './index.html',
@@ -67,5 +67,6 @@ self.addEventListener('fetch', (event) => {
     }
   })());
 });
+
 
 
