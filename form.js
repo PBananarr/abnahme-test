@@ -414,8 +414,8 @@
     const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
     // ==== Farb-/Layout-Vorgaben ====
-    const COLOR_PRIMARY = rgb(0x00 / 255, 0x77 / 255, 0xb6 / 255);      // #3b5370
-    const COLOR_PRIMARY_DARK = rgb(0x02 / 255, 0x3e / 255, 0x8a / 255); // #3b5370
+    const COLOR_PRIMARY = rgb(0x3b / 255, 0x53 / 255, 0x70 / 255);      // #3b5370
+    const COLOR_PRIMARY_DARK = rgb(0x3b / 255, 0x53 / 255, 0x70 / 255); // #3b5370
     const COLOR_SECTION_BG = rgb(0xf7 / 255, 0xfa / 255, 0xff / 255);   // #f7faff
     const COLOR_BORDER = rgb(0xdd / 255, 0xdd / 255, 0xdd / 255);       // #dddddd
     const COLOR_TEXT = rgb(0, 0, 0);
