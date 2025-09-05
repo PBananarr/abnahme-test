@@ -474,7 +474,7 @@
         // Logo skalieren, oben links
         let logoW = 0, logoH = 0;
         if (logoImg) {
-          const LOGO_H = 20;
+          const LOGO_H = 40;
           const scale  = LOGO_H / logoImg.height;
           const LOGO_W = logoImg.width * scale;
 
@@ -485,7 +485,7 @@
           const titleCenterY = titleBaselineY + (ASCENT - DESCENT) * tSize / 2 - DESCENT * tSize;
 
           // Feinjustierung: positiver Wert verschiebt nach oben
-          const LOGO_OFFSET_Y = 3;   // ← hier 2–4 px ausprobieren
+          const LOGO_OFFSET_Y = 6;   // ← hier 2–4 px ausprobieren
 
           const yLogo = titleCenterY - LOGO_H / 2 + LOGO_OFFSET_Y;
 
@@ -852,4 +852,5 @@
 }
 
 })();
+
 
