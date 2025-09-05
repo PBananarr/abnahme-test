@@ -537,7 +537,7 @@
         // Logo skalieren, oben links
         let logoW = 0, logoH = 0;
         if (logoImg) {
-          const LOGO_H = 20;
+          const LOGO_H = 40;
           const scale = LOGO_H / logoImg.height;
           const LOGO_W = logoImg.width * scale;
 
@@ -916,3 +916,4 @@
   }
 
 })();
+
