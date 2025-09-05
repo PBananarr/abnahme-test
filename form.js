@@ -548,7 +548,7 @@
           const titleCenterY = titleBaselineY + (ASCENT - DESCENT) * tSize / 2 - DESCENT * tSize;
 
           // Feinjustierung: positiver Wert verschiebt nach oben
-          const LOGO_OFFSET_Y = 6;
+          const LOGO_OFFSET_Y = 6;   // ← hier 2–4 px ausprobieren
 
           const yLogo = titleCenterY - LOGO_H / 2 + LOGO_OFFSET_Y;
 
@@ -881,27 +881,18 @@
       drawSignBox(MARGIN + halfW + gap, topY, halfW, fieldH, 'Unterschrift des Mieters bzw. seines Bevollmächtigten');
       cursorY = topY - fieldH - 30;
 
-      // ===== Ausgabe
-      // Footer (Trennlinie + Seitenzahlen)
+     // Footer + Download
       drawFooterForAllPages(pdf, fontRegular);
-
       const pdfBytes = await pdf.save();
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      const filename = 'Wohnungsabnahmeprotokoll.pdf';
-
-      const file = new File([blob], filename, { type: 'application/pdf' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ title: 'Wohnungsabnahmeprotokoll', text: 'Erstellt mit dem Abnahmeformular', files: [file] });
-      } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = filename;
-        document.body.appendChild(a); a.click(); a.remove();
-        URL.revokeObjectURL(url);
-      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'Wohnungsabnahmeprotokoll.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+      try { URL.revokeObjectURL(url); } catch { }
     } catch (err) {
-      console.error(err);
-      alert('PDF-Erstellung fehlgeschlagen.');
+      console.error('PDF-Fehler:', err);
+      alert('PDF-Erstellung fehlgeschlagen. Siehe Konsole für Details.');
     }
   });
 
@@ -916,5 +907,3 @@
   }
 
 })();
-
-
