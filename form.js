@@ -46,8 +46,12 @@
 
   const addLabelInput = (wrap, label, name, type = 'text', preset, options) => {
     const row = el('div', 'form-group');
+
+    // ID erzeugen & Label verknüpfen
+    const id = uid(name);
     const l = el('label');
     l.textContent = label;
+    l.htmlFor = id;
     row.appendChild(l);
 
     let input;
@@ -73,6 +77,9 @@
     }
 
     input.name = name;
+    input.id = id;
+    applyInputHints(input, name, type);
+
     row.appendChild(input);
     wrap.appendChild(row);
   };
@@ -88,6 +95,8 @@
     const def = document.createElement('option');
     def.value = '';
     def.textContent = '-- Feld auswählen --';
+    // (Optional: deaktivieren, wenn du magst)
+    // def.disabled = true; def.hidden = true; def.selected = true;
     sel.appendChild(def);
 
     section.options.forEach(o => {
@@ -194,8 +203,11 @@
             wrap.appendChild(strong);
 
             subfields.forEach(sf => {
+              // Label + ID-Verknüpfung
+              const id = uid(sf.name);
               const lab = document.createElement('label');
               lab.textContent = sf.label;
+              lab.htmlFor = id;
               wrap.appendChild(lab);
 
               let input;
@@ -211,6 +223,8 @@
                 input.type = sf.type || 'text';
               }
               input.name = sf.name;
+              input.id = id;
+              applyInputHints(input, sf.name, sf.type);
               wrap.appendChild(input);
             });
 
@@ -223,13 +237,18 @@
             container.appendChild(wrap);
           } else {
             const row = el('div', 'field-item');
+
+            const id = uid(optEl.value);
             const lab = document.createElement('label');
             lab.textContent = label;
+            lab.htmlFor = id;
             row.appendChild(lab);
 
             const input = document.createElement('input');
             input.name = optEl.value;
             input.type = type || 'text';
+            input.id = id;
+            applyInputHints(input, optEl.value, type);
             row.appendChild(input);
 
             const rm = el('button', 'remove-btn');
@@ -261,17 +280,24 @@
         wrap = document.createElement('div');
         wrap.id = 'maengel_dynamic_wrap';
         wrap.className = 'form-group';
-        // Label
+        // Label + ID
+        const id = uid('maengel_liste');
         const lab = document.createElement('label');
         lab.textContent = 'Die Wohnung weist folgende Mängel auf:';
+        lab.htmlFor = id;
         wrap.appendChild(lab);
         // Textarea
         const ta = document.createElement('textarea');
         ta.name = 'maengel_liste';
+        ta.id = id;
         wrap.appendChild(ta);
 
         // NACH der Select-Zeile einsetzen
-        selectRow.parentNode.insertBefore(wrap, selectRow.nextSibling);
+        if (selectRow && selectRow.parentNode) {
+          selectRow.parentNode.insertBefore(wrap, selectRow.nextSibling);
+        } else {
+          form.appendChild(wrap);
+        }
       }
     };
 
@@ -357,13 +383,20 @@
           wrap = document.createElement('div');
           wrap.id = 'maengel_dynamic_wrap';
           wrap.className = 'form-group';
+          const id = uid('maengel_liste');
           const lab = document.createElement('label');
           lab.textContent = 'Die Wohnung weist folgende Mängel auf:';
+          lab.htmlFor = id;
           wrap.appendChild(lab);
           const ta = document.createElement('textarea');
           ta.name = 'maengel_liste';
+          ta.id = id;
           wrap.appendChild(ta);
-          selectRow.parentNode.insertBefore(wrap, selectRow.nextSibling);
+          if (selectRow && selectRow.parentNode) {
+            selectRow.parentNode.insertBefore(wrap, selectRow.nextSibling);
+          } else {
+            form.appendChild(wrap);
+          }
         }
         const ta = form.querySelector('textarea[name="maengel_liste"]');
         if (ta && typeof data['maengel_liste'] === 'string') ta.value = data['maengel_liste'];
@@ -399,12 +432,10 @@
 
       pages.forEach((p, i) => {
         const total = pages.length;
-        // Format Seite XX von YY
         const cur = String(i + 1).padStart(2, '0');
         const tot = String(total).padStart(2, '0');
         const label = `Seite ${cur} von ${tot}`;
 
-        // leichte graue Trennlinie im Fußbereich
         p.drawLine({
           start: { x: MARGIN, y: lineY },
           end: { x: PAGE_W - MARGIN, y: lineY },
@@ -412,7 +443,6 @@
           color: COLOR_BORDER
         });
 
-        // Seitenzahl unten rechts
         const tw = font.widthOfTextAtSize(label, fs);
         p.drawText(label, {
           x: PAGE_W - MARGIN - tw,
@@ -507,26 +537,27 @@
         // Logo skalieren, oben links
         let logoW = 0, logoH = 0;
         if (logoImg) {
-          const LOGO_H = 40;
+          // alternative skalierung wie in deinem Snippet, aber Werte in logoW/H übernehmen
+          const LOGO_H = Math.min(LOGO_MAX_H, logoImg.height); // Schutz
           const scale = LOGO_H / logoImg.height;
           const LOGO_W = logoImg.width * scale;
 
-          // Titel-Geometrie (wie bisher)
+          logoW = Math.min(LOGO_MAX_W, LOGO_W);
+          logoH = LOGO_H;
+
           const tSize = 18;
           const titleBaselineY = PAGE_H - MARGIN - 10;
           const ASCENT = 0.8, DESCENT = 0.2;
           const titleCenterY = titleBaselineY + (ASCENT - DESCENT) * tSize / 2 - DESCENT * tSize;
 
-          // Feinjustierung: positiver Wert verschiebt nach oben
-          const LOGO_OFFSET_Y = 6;   // ← hier 2–4 px ausprobieren
-
-          const yLogo = titleCenterY - LOGO_H / 2 + LOGO_OFFSET_Y;
+          const LOGO_OFFSET_Y = 6;
+          const yLogo = titleCenterY - logoH / 2 + LOGO_OFFSET_Y;
 
           page.drawImage(logoImg, {
             x: MARGIN,
             y: yLogo,
-            width: LOGO_W,
-            height: LOGO_H
+            width: logoW,
+            height: logoH
           });
         }
 
@@ -540,7 +571,7 @@
         drawText(title, titleX, titleY, tSize, COLOR_PRIMARY_DARK, true);
 
         // feine Linie unter Kopf; Unterkante = unterer Rand von Logo/Titel minus Luft
-        const logoBottom = logoW ? (PAGE_H - MARGIN - logoH + 6) : titleY;
+        const logoBottom = logoW ? (titleY - (logoH - 6)) : titleY;
         const titleBottom = titleY - tSize;
         const contentTopY = Math.min(logoBottom, titleBottom) - 8;
 
@@ -879,11 +910,10 @@
     navigator.serviceWorker.controller.postMessage('getVersion');
     navigator.serviceWorker.addEventListener('message', e => {
       if (e.data?.type === 'version') {
-        document.getElementById('version-info').textContent = 'Version: ' + e.data.version;
+        const vi = document.getElementById('version-info');
+        if (vi) vi.textContent = 'Version: ' + e.data.version;
       }
     });
   }
 
 })();
-
-
