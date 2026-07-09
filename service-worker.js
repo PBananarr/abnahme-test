@@ -1,15 +1,19 @@
-const CACHE_NAME = 'abnahme-cache-test-v2.0.3.';
+const CACHE_NAME = 'AF-Version-1.3.0.';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './form.js',
   './form_data.js',
+  './records.js',
+  './signature.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './img/logo.png',
   './vendor/pdf-lib.min.js',
+  './vendor/pdfjs/pdf.min.js',
+  './vendor/pdfjs/pdf.worker.min.js',
   './fonts/DejaVuSans.ttf'
 ];
 

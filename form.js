@@ -15,6 +15,9 @@
   let __uid = 0;
   const uid = (prefix = 'f') => `${prefix}_${(++__uid).toString(36)}`;
 
+  // Strukturänderungen (Zeile hinzugefügt/entfernt, Reset) an records.js melden -> Autosave
+  const notifyChanged = () => document.dispatchEvent(new CustomEvent('abnahme:changed'));
+
   // iPad-/Tastatur-Hilfen + dezimale Eingaben
   const applyInputHints = (input, name, type) => {
     const nm = String(name || '').toLowerCase();
@@ -120,6 +123,122 @@
     return { ui: wrap, select: sel, addBtn };
   };
 
+  // ---------- Dynamische Zeile erzeugen (Klick auf "+" ODER Wiederherstellung) ----------
+  // Jede erzeugte Zeile bekommt data-option, damit sie beim Zwischenspeichern
+  // erkannt und beim Laden identisch wieder aufgebaut werden kann.
+  const buildDynamicRow = (sectionIdx, optionName) => {
+    const section = sections[sectionIdx];
+    const container = document.getElementById(`fields-container-${sectionIdx}`);
+    if (!section || !container || !Array.isArray(section.options)) return null;
+
+    const opt = section.options.find(o => o.name === optionName);
+    if (!opt) return null;
+
+    const label = opt.label || optionName;
+
+    // --- Spezial: Weitere Räume ---
+    if ((section.title || '').trim() === 'Weitere Räume') {
+      const card = el('div', 'field-item');
+      card.dataset.option = optionName;
+      card.style.flexDirection = 'column';
+      card.style.alignItems = 'stretch';
+
+      const head = el('div');
+      head.style.display = 'flex';
+      head.style.alignItems = 'center';
+      head.style.gap = '10px';
+
+      const strong = document.createElement('strong');
+      strong.textContent = label;
+
+      const removeRoomBtn = el('button', 'remove-btn');
+      removeRoomBtn.type = 'button';
+      removeRoomBtn.textContent = 'Entfernen';
+      removeRoomBtn.addEventListener('click', () => { card.remove(); notifyChanged(); });
+
+      head.appendChild(strong);
+      head.appendChild(removeRoomBtn);
+      card.appendChild(head);
+
+      (opt.fields || opt.subfields || []).forEach(f => {
+        addLabelInput(card, f.label, f.name, f.type, f.checked, f.options);
+      });
+
+      container.appendChild(card);
+      return card;
+    }
+
+    // --- Standard: Gruppe mit Subfeldern ---
+    if (opt.type === 'multi' && Array.isArray(opt.subfields) && opt.subfields.length) {
+      const wrap = el('div', 'field-item');
+      wrap.dataset.option = optionName;
+
+      const strong = document.createElement('strong');
+      strong.textContent = label;
+      wrap.appendChild(strong);
+
+      opt.subfields.forEach(sf => {
+        const id = uid(sf.name);
+        const lab = document.createElement('label');
+        lab.textContent = sf.label;
+        lab.htmlFor = id;
+        wrap.appendChild(lab);
+
+        let input;
+        if (sf.type === 'checkbox') {
+          input = document.createElement('input');
+          input.type = 'checkbox';
+          if (sf.checked) input.checked = true;
+          input.style.width = 'auto';
+        } else if (sf.type === 'textarea') {
+          input = document.createElement('textarea');
+        } else {
+          input = document.createElement('input');
+          input.type = sf.type || 'text';
+        }
+        input.name = sf.name;
+        input.id = id;
+        applyInputHints(input, sf.name, sf.type);
+        wrap.appendChild(input);
+      });
+
+      const rm = el('button', 'remove-btn');
+      rm.type = 'button';
+      rm.textContent = 'Entfernen';
+      rm.addEventListener('click', () => { wrap.remove(); notifyChanged(); });
+      wrap.appendChild(rm);
+
+      container.appendChild(wrap);
+      return wrap;
+    }
+
+    // --- Einzel-Feld ---
+    const row = el('div', 'field-item');
+    row.dataset.option = optionName;
+
+    const id = uid(opt.name);
+    const lab = document.createElement('label');
+    lab.textContent = label;
+    lab.htmlFor = id;
+    row.appendChild(lab);
+
+    const input = document.createElement('input');
+    input.name = opt.name;
+    input.type = opt.type || 'text';
+    input.id = id;
+    applyInputHints(input, opt.name, opt.type);
+    row.appendChild(input);
+
+    const rm = el('button', 'remove-btn');
+    rm.type = 'button';
+    rm.textContent = 'Entfernen';
+    rm.addEventListener('click', () => { row.remove(); notifyChanged(); });
+    row.appendChild(rm);
+
+    container.appendChild(row);
+    return row;
+  };
+
   // ---------- Rendering ----------
   sections.forEach((section, i) => {
     const h2 = document.createElement('h2');
@@ -144,122 +263,8 @@
 
       if (addBtn) {
         addBtn.addEventListener('click', () => {
-          const optEl = select.selectedOptions[0];
-          if (!optEl || !optEl.value) return;
-
-          const sectionTitle = (select.dataset.sectionTitle || '').trim();
-          const type = optEl.dataset.type;
-          const label = optEl.textContent;
-          const subfields = optEl.dataset.subfields ? JSON.parse(optEl.dataset.subfields) : [];
-
-          // --- Spezial: Weitere Räume ---
-          if (sectionTitle === 'Weitere Räume') {
-            const card = el('div', 'field-item');
-            card.style.flexDirection = 'column';
-            card.style.alignItems = 'stretch';
-
-            const head = el('div');
-            head.style.display = 'flex';
-            head.style.alignItems = 'center';
-            head.style.gap = '10px';
-
-            const strong = document.createElement('strong');
-            strong.textContent = label;
-
-            const removeRoomBtn = el('button', 'remove-btn');
-            removeRoomBtn.type = 'button';
-            removeRoomBtn.textContent = 'Entfernen';
-            removeRoomBtn.addEventListener('click', () => card.remove());
-
-            head.appendChild(strong);
-            head.appendChild(removeRoomBtn);
-            card.appendChild(head);
-
-            // Die 3 Felder aus option.fields rendern
-            const fields = Array.isArray(subfields) && subfields.length && subfields[0]?.label
-              ? subfields
-              : (optEl.dataset.fields ? JSON.parse(optEl.dataset.fields) : []);
-
-            let optionObj = null;
-            if (!fields.length && Array.isArray(section.options)) {
-              optionObj = section.options.find(o => o.name === optEl.value || o.label === label);
-            }
-            const finalFields = fields.length ? fields : (optionObj?.fields || []);
-
-            finalFields.forEach(f => {
-              addLabelInput(card, f.label, f.name, f.type, f.checked, f.options);
-            });
-
-            container.appendChild(card);
-            select.value = '';
-            return;
-          }
-
-          // --- Standard: Gruppe mit Subfeldern oder Einzel-Feld ---
-          if (type === 'multi' && Array.isArray(subfields) && subfields.length) {
-            const wrap = el('div', 'field-item');
-            const strong = document.createElement('strong');
-            strong.textContent = label;
-            wrap.appendChild(strong);
-
-            subfields.forEach(sf => {
-              // Label + ID-Verknüpfung
-              const id = uid(sf.name);
-              const lab = document.createElement('label');
-              lab.textContent = sf.label;
-              lab.htmlFor = id;
-              wrap.appendChild(lab);
-
-              let input;
-              if (sf.type === 'checkbox') {
-                input = document.createElement('input');
-                input.type = 'checkbox';
-                if (sf.checked) input.checked = true;
-                input.style.width = 'auto';
-              } else if (sf.type === 'textarea') {
-                input = document.createElement('textarea');
-              } else {
-                input = document.createElement('input');
-                input.type = sf.type || 'text';
-              }
-              input.name = sf.name;
-              input.id = id;
-              applyInputHints(input, sf.name, sf.type);
-              wrap.appendChild(input);
-            });
-
-            const rm = el('button', 'remove-btn');
-            rm.type = 'button';
-            rm.textContent = 'Entfernen';
-            rm.addEventListener('click', () => wrap.remove());
-            wrap.appendChild(rm);
-
-            container.appendChild(wrap);
-          } else {
-            const row = el('div', 'field-item');
-
-            const id = uid(optEl.value);
-            const lab = document.createElement('label');
-            lab.textContent = label;
-            lab.htmlFor = id;
-            row.appendChild(lab);
-
-            const input = document.createElement('input');
-            input.name = optEl.value;
-            input.type = type || 'text';
-            input.id = id;
-            applyInputHints(input, optEl.value, type);
-            row.appendChild(input);
-
-            const rm = el('button', 'remove-btn');
-            rm.type = 'button';
-            rm.textContent = 'Entfernen';
-            rm.addEventListener('click', () => row.remove());
-            row.appendChild(rm);
-
-            container.appendChild(row);
-          }
-
+          if (!select.value) return;
+          if (buildDynamicRow(i, select.value)) notifyChanged();
           select.value = '';
         });
       }
@@ -320,89 +325,85 @@
     onChange();
   })();
 
-  // ---------- Speichern (Anzeige + LocalStorage) ----------
-  document.getElementById('save-btn')?.addEventListener('click', () => {
-    const fd = new FormData(form);
-    const entries = {};
-    for (const [k, v] of fd.entries()) entries[k] = v;
+  // ---------- Formular-Zustand: leeren / serialisieren / wiederherstellen ----------
+  const clearFormState = () => {
+    form.reset();
+    sections.forEach((_, i) => {
+      const c = document.getElementById(`fields-container-${i}`);
+      if (c) c.innerHTML = '';
+    });
+    form.querySelector('#maengel_dynamic_wrap')?.remove();
+    if (out) out.style.display = 'none';
+  };
 
-    form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      if (!entries.hasOwnProperty(cb.name)) {
-        entries[cb.name] = cb.checked ? 'on' : '';
-      }
+  const serializeState = () => {
+    // Welche dynamischen Zeilen wurden hinzugefügt (in Reihenfolge)?
+    const dynamic = [];
+    sections.forEach((_, i) => {
+      const c = document.getElementById(`fields-container-${i}`);
+      if (!c) return;
+      [...c.children].forEach(rowEl => {
+        if (rowEl.dataset && rowEl.dataset.option) {
+          dynamic.push({ section: i, option: rowEl.dataset.option });
+        }
+      });
     });
 
-    const ul = document.createElement('ul');
-    Object.entries(entries).forEach(([k, v]) => {
-      if (String(v).trim() === '') return;
-      const li = document.createElement('li');
-      li.textContent = `${k}: ${v}`;
-      ul.appendChild(li);
+    // Werte pro Feldname in DOM-Reihenfolge (Mehrfachfelder => mehrere Einträge)
+    const values = {};
+    form.querySelectorAll('input, textarea, select').forEach(inp => {
+      if (!inp.name) return;
+      const v = inp.type === 'checkbox' ? (inp.checked ? 'on' : '') : inp.value;
+      if (!values[inp.name]) values[inp.name] = [];
+      values[inp.name].push(v);
     });
 
-    out.innerHTML = '<h2>Eingegebene Daten:</h2>';
-    out.appendChild(ul);
-    out.style.display = 'block';
+    return { dynamic, values };
+  };
 
-    try {
-      localStorage.setItem('abnahme_form_data', JSON.stringify(entries));
-    } catch (e) { }
-  });
+  const restoreState = (state) => {
+    clearFormState();
+
+    (Array.isArray(state?.dynamic) ? state.dynamic : []).forEach(d => {
+      buildDynamicRow(d.section, d.option);
+    });
+
+    const values = state?.values || {};
+
+    // Erst "ohne Beanstandungen" setzen, damit das dynamische Mängel-Textfeld entsteht
+    const selOB = form.querySelector('select[name="ohne_beanstandungen"]');
+    const obVals = values['ohne_beanstandungen'];
+    if (selOB && Array.isArray(obVals) && obVals[0]) {
+      selOB.value = obVals[0];
+      selOB.dispatchEvent(new Event('change'));
+    }
+
+    // Alle Werte in DOM-Reihenfolge zurückschreiben
+    const counters = {};
+    form.querySelectorAll('input, textarea, select').forEach(inp => {
+      if (!inp.name) return;
+      const arr = values[inp.name];
+      if (!Array.isArray(arr)) return;
+      const idx = counters[inp.name] = (counters[inp.name] ?? -1) + 1;
+      if (idx >= arr.length) return;
+      if (inp.type === 'checkbox') inp.checked = arr[idx] === 'on';
+      else inp.value = arr[idx];
+    });
+  };
+
+  // API für records.js (automatische Zwischenspeicherung + Vorgangsverwaltung)
+  window.AbnahmeForm = {
+    serialize: serializeState,
+    restore: restoreState,
+    clearForm: clearFormState
+  };
 
   // ---------- Reset ----------
   document.getElementById('reset-btn')?.addEventListener('click', () => {
     if (!confirm('Alle Eingaben löschen?')) return;
-    form.reset();
-    [...root.querySelectorAll('[id^="fields-container-"]')].forEach(c => c.innerHTML = '');
-    out.style.display = 'none';
-    try { localStorage.removeItem('abnahme_form_data'); } catch (e) { }
-    // Dynamisches Feld nach Reset entfernen
-    document.querySelector('#maengel_dynamic_wrap')?.remove();
+    clearFormState();
+    notifyChanged();
   });
-
-  // ---------- Laden (falls vorhanden) ----------
-  (function restore() {
-    try {
-      const raw = localStorage.getItem('abnahme_form_data');
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      form.querySelectorAll('input, textarea, select').forEach(inp => {
-        if (!inp.name) return;
-        if (inp.type === 'checkbox') {
-          inp.checked = data[inp.name] === 'on';
-        } else if (data[inp.name] != null) {
-          inp.value = data[inp.name];
-        }
-      });
-      // Falls "Nein" gespeichert war, dynamisches Feld sicherstellen + Wert setzen
-      const sel = form.querySelector('select[name="ohne_beanstandungen"]');
-      if (sel && sel.value === 'Nein') {
-        const selectRow = sel.closest('.form-group');
-        let wrap = form.querySelector('#maengel_dynamic_wrap');
-        if (!wrap) {
-          wrap = document.createElement('div');
-          wrap.id = 'maengel_dynamic_wrap';
-          wrap.className = 'form-group';
-          const id = uid('maengel_liste');
-          const lab = document.createElement('label');
-          lab.textContent = 'Die Wohnung weist folgende Mängel auf:';
-          lab.htmlFor = id;
-          wrap.appendChild(lab);
-          const ta = document.createElement('textarea');
-          ta.name = 'maengel_liste';
-          ta.id = id;
-          wrap.appendChild(ta);
-          if (selectRow && selectRow.parentNode) {
-            selectRow.parentNode.insertBefore(wrap, selectRow.nextSibling);
-          } else {
-            form.appendChild(wrap);
-          }
-        }
-        const ta = form.querySelector('textarea[name="maengel_liste"]');
-        if (ta && typeof data['maengel_liste'] === 'string') ta.value = data['maengel_liste'];
-      }
-    } catch (e) { }
-  })();
 
   // ---------- Echte PDF mit pdf-lib ----------
   document.getElementById('pdf-btn')?.addEventListener('click', async () => {
@@ -506,9 +507,8 @@
       let logoNaturalW = 0, logoNaturalH = 0;
 
       try {
-        // Cache-Busting gegen SW/HTTP-Caches
-        const logoURL = new URL(`./img/logo.png?v=${Date.now()}`, location.href).toString();
-        const resp = await fetch(logoURL, { cache: 'no-store' });
+        // Über den Service-Worker-Cache laden -> funktioniert auch offline
+        const resp = await fetch('./img/logo.png');
         if (resp.ok) {
           const bytes = await resp.arrayBuffer();
           try {
@@ -881,13 +881,63 @@
       drawSignBox(MARGIN + halfW + gap, topY, halfW, fieldH, 'Unterschrift des Mieters bzw. seines Bevollmächtigten');
       cursorY = topY - fieldH - 30;
 
-     // Footer + Download
+      // Footer schon jetzt zeichnen, damit die Vorschau die endgültige PDF zeigt
       drawFooterForAllPages(pdf, fontRegular);
+
+      // ===== Vorschau der fertigen PDF + Unterschriften erfassen =====
+      if (window.AbnahmeSignature) {
+        const sigPage = page; // Seite mit den Unterschriftsboxen
+        const sigBoxes = {
+          vermieter: { x: MARGIN, y: topY, w: halfW, h: fieldH },
+          mieter: { x: MARGIN + halfW + gap, y: topY, w: halfW, h: fieldH }
+        };
+
+        // Stand der PDF (ohne Unterschriften) für die Vorschau serialisieren
+        const previewBytes = await pdf.save();
+        const sigs = await window.AbnahmeSignature.collect(previewBytes);
+        if (sigs === null) return; // Abbrechen gedrückt -> keine PDF erzeugen
+
+        const placeSig = async (dataUrl, box) => {
+          if (!dataUrl) return;
+          const img = await pdf.embedPng(dataUrl);
+          const lineY = box.y - box.h + 26; // Signaturlinie (siehe drawSignBox)
+          const maxW = box.w - 44;
+          const maxH = 32;
+          const scale = Math.min(maxW / img.width, maxH / img.height);
+          const w = img.width * scale;
+          const h = img.height * scale;
+          sigPage.drawImage(img, {
+            x: box.x + (box.w - w) / 2,
+            y: lineY + 2, // direkt auf der Linie aufsitzend
+            width: w,
+            height: h
+          });
+        };
+
+        await placeSig(sigs.vermieter, sigBoxes.vermieter);
+        await placeSig(sigs.mieter, sigBoxes.mieter);
+      }
+
+     // Download (Footer wurde bereits vor der Vorschau gezeichnet)
       const pdfBytes = await pdf.save();
+
+      // Dateiname mit Adresse/Datum (hilft in der Dateien-App bei mehreren Abnahmen)
+      const sanitize = s => asStr(s).replace(/[^\wäöüÄÖÜß\- ]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60);
+      const filename = ['Wohnungsabnahmeprotokoll',
+        sanitize(data['straße_hausnummer']),
+        sanitize(data['wohnung_nr_etage_objekt']),
+        asStr(data['datum'])
+      ].filter(Boolean).join('_') + '.pdf';
+
+      // PDF zusätzlich im aktuellen Vorgang sichern (records.js), bevor der Download startet
+      try {
+        document.dispatchEvent(new CustomEvent('abnahme:pdf', { detail: { bytes: pdfBytes, filename } }));
+      } catch (e) { }
+
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = 'Wohnungsabnahmeprotokoll.pdf';
+      a.href = url; a.download = filename;
       document.body.appendChild(a); a.click(); a.remove();
       try { URL.revokeObjectURL(url); } catch { }
     } catch (err) {

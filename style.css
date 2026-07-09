@@ -33,6 +33,7 @@ h2 {
     padding-bottom: 5px;
 }
 
+
 /* Form-Grid */
 .form-group {
     display: grid;
@@ -119,6 +120,130 @@ button:hover {
     background: #1f776c;
 }
 
+/* Vorgangsleiste (Zwischenspeicherung / mehrere Abnahmen) */
+.record-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    background: #f7faff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 25px;
+}
+
+.record-bar label {
+    white-space: nowrap;
+}
+
+.record-bar select {
+    flex: 1;
+    min-width: 220px;
+    width: auto;
+}
+
+.record-bar .remove-btn {
+    margin-left: 0;
+}
+
+#record-status {
+    flex-basis: 100%;
+    font-size: 11px;
+    color: #888;
+    text-align: right;
+    min-height: 13px;
+}
+
+/* Unterschriften-Dialog (nach "Als PDF erzeugen") */
+.sig-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+    z-index: 1000;
+}
+
+.sig-dialog {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    padding: 20px 25px;
+    width: 100%;
+    max-width: 860px;
+    max-height: 95vh;
+    overflow-y: auto;
+}
+
+.sig-preview {
+    max-height: 48vh;
+    overflow-y: auto;
+    background: #f0f2f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 12px;
+}
+
+.sig-preview-page {
+    display: block;
+    width: 100%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    margin: 0 auto 10px;
+}
+
+.sig-dialog h2 {
+    margin-top: 0;
+}
+
+.sig-hint {
+    font-size: 0.9rem;
+    color: #555;
+    margin-bottom: 15px;
+}
+
+.sig-field {
+    margin-bottom: 15px;
+}
+
+.sig-field label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.sig-field canvas {
+    display: block;
+    width: 100%;
+    height: 160px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    touch-action: none;
+}
+
+.sig-field .sig-clear {
+    margin-top: 6px;
+}
+
+.sig-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.sig-actions .submit-btn {
+    margin-top: 0;
+}
+
 /* Erfolgsbereich */
 .submitted-data {
     margin-top: 30px;
@@ -147,6 +272,16 @@ button:hover {
 
     .remove-btn {
         margin-left: 0;
+        width: 100%;
+    }
+
+    .record-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .record-bar select,
+    .record-bar button {
         width: 100%;
     }
 }
