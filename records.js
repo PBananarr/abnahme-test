@@ -201,6 +201,18 @@
   });
   window.addEventListener('pagehide', () => flushSave());
 
+  // Safari: Beim Zurücknavigieren (z.B. aus einer PDF-Ansicht) stellt der
+  // Browser Formularfelder selbst wieder her bzw. leert sie dabei. Kurz danach
+  // unseren gesicherten Stand erneut anwenden - der ist die einzige Wahrheit.
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted && current) {
+      setTimeout(() => {
+        api.restore(current.state || { dynamic: [], values: {} });
+        updatePdfButton();
+      }, 80);
+    }
+  });
+
   // ---------- Vorgänge aktivieren / wechseln / anlegen / löschen ----------
   const activate = (rec) => {
     current = rec;
@@ -266,15 +278,28 @@
     }
   });
 
-  btnPdf.addEventListener('click', () => {
+  btnPdf.addEventListener('click', async () => {
     if (!current || !current.pdf || !current.pdf.bytes) return;
+    const filename = current.pdf.filename || 'Wohnungsabnahmeprotokoll.pdf';
+
+    // Wie beim Erzeugen: bevorzugt Teilen-Menü, damit die App nicht wegnavigiert
+    try {
+      const file = new File([current.pdf.bytes], filename, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+
     const blob = new Blob([current.pdf.bytes], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = current.pdf.filename || 'Wohnungsabnahmeprotokoll.pdf';
+    a.download = filename;
     document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) { } }, 1000);
+    setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) { } }, 60000);
   });
 
   // ---------- Start: letzten Vorgang laden oder neuen anlegen ----------

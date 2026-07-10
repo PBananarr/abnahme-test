@@ -934,17 +934,35 @@
         asStr(data['datum'])
       ].filter(Boolean).join('_') + '.pdf';
 
-      // PDF zusätzlich im aktuellen Vorgang sichern (records.js), bevor der Download startet
+      // PDF zusätzlich im aktuellen Vorgang sichern (records.js), bevor sie den Nutzer erreicht
       try {
         document.dispatchEvent(new CustomEvent('abnahme:pdf', { detail: { bytes: pdfBytes, filename } }));
       } catch (e) { }
 
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); a.remove();
-      try { URL.revokeObjectURL(url); } catch { }
+      // Bevorzugt das iOS-Teilen-Menü (Drucken / In Dateien sichern / Mail):
+      // die App bleibt dabei im Vordergrund und navigiert nicht zur PDF weg.
+      let ausgeliefert = false;
+      try {
+        const file = new File([pdfBytes], filename, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: filename });
+          ausgeliefert = true;
+        }
+      } catch (e) {
+        // AbortError = Nutzer hat das Teilen-Menü bewusst geschlossen -> kein Zwangs-Download
+        if (e && e.name === 'AbortError') ausgeliefert = true;
+      }
+
+      if (!ausgeliefert) {
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        // Spät freigeben: falls Safari die PDF im selben Tab öffnet, muss die
+        // URL beim Zurückgehen noch gültig sein
+        setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) { } }, 60000);
+      }
     } catch (err) {
       console.error('PDF-Fehler:', err);
       alert('PDF-Erstellung fehlgeschlagen. Siehe Konsole für Details.');

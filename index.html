@@ -59,7 +59,10 @@
     <h1>Wohnungsabnahmeprotokoll</h1>
 
     <!-- Formular wird komplett durch JS gerendert -->
-    <form id="abnahme-form">
+    <!-- autocomplete="off": verhindert, dass Safari beim Zurücknavigieren seine
+         eigene Formular-Wiederherstellung anwendet und die von der App
+         wiederhergestellten Werte überschreibt/leert -->
+    <form id="abnahme-form" autocomplete="off">
       <div id="sections-root"></div>
 
       <div class="no-print" style="display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;">
