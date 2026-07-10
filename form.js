@@ -884,42 +884,47 @@
       // Footer schon jetzt zeichnen, damit die Vorschau die endgültige PDF zeigt
       drawFooterForAllPages(pdf, fontRegular);
 
+      // Jedes Dokument nur EINMAL speichern (zweites save() desselben Dokuments
+      // ist mit Font-Subsets browserabhängig fehleranfällig, u.a. in Safari)
+      let pdfBytes = await pdf.save();
+
       // ===== Vorschau der fertigen PDF + Unterschriften erfassen =====
       if (window.AbnahmeSignature) {
-        const sigPage = page; // Seite mit den Unterschriftsboxen
         const sigBoxes = {
           vermieter: { x: MARGIN, y: topY, w: halfW, h: fieldH },
           mieter: { x: MARGIN + halfW + gap, y: topY, w: halfW, h: fieldH }
         };
 
-        // Stand der PDF (ohne Unterschriften) für die Vorschau serialisieren
-        const previewBytes = await pdf.save();
-        const sigs = await window.AbnahmeSignature.collect(previewBytes);
+        const sigs = await window.AbnahmeSignature.collect(pdfBytes);
         if (sigs === null) return; // Abbrechen gedrückt -> keine PDF erzeugen
 
-        const placeSig = async (dataUrl, box) => {
-          if (!dataUrl) return;
-          const img = await pdf.embedPng(dataUrl);
-          const lineY = box.y - box.h + 26; // Signaturlinie (siehe drawSignBox)
-          const maxW = box.w - 44;
-          const maxH = 32;
-          const scale = Math.min(maxW / img.width, maxH / img.height);
-          const w = img.width * scale;
-          const h = img.height * scale;
-          sigPage.drawImage(img, {
-            x: box.x + (box.w - w) / 2,
-            y: lineY + 2, // direkt auf der Linie aufsitzend
-            width: w,
-            height: h
-          });
-        };
+        if (sigs.vermieter || sigs.mieter) {
+          // Unterschriften in eine frische Kopie exakt der Vorschau-Bytes einbetten
+          const signedDoc = await PDFDocument.load(pdfBytes);
+          const lastPage = signedDoc.getPage(signedDoc.getPageCount() - 1);
 
-        await placeSig(sigs.vermieter, sigBoxes.vermieter);
-        await placeSig(sigs.mieter, sigBoxes.mieter);
+          const placeSig = async (dataUrl, box) => {
+            if (!dataUrl) return;
+            const img = await signedDoc.embedPng(dataUrl);
+            const lineY = box.y - box.h + 26; // Signaturlinie (siehe drawSignBox)
+            const maxW = box.w - 44;
+            const maxH = 32;
+            const scale = Math.min(maxW / img.width, maxH / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            lastPage.drawImage(img, {
+              x: box.x + (box.w - w) / 2,
+              y: lineY + 2, // direkt auf der Linie aufsitzend
+              width: w,
+              height: h
+            });
+          };
+
+          await placeSig(sigs.vermieter, sigBoxes.vermieter);
+          await placeSig(sigs.mieter, sigBoxes.mieter);
+          pdfBytes = await signedDoc.save();
+        }
       }
-
-     // Download (Footer wurde bereits vor der Vorschau gezeichnet)
-      const pdfBytes = await pdf.save();
 
       // Dateiname mit Adresse/Datum (hilft in der Dateien-App bei mehreren Abnahmen)
       const sanitize = s => asStr(s).replace(/[^\wäöüÄÖÜß\- ]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60);

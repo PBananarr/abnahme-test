@@ -33,6 +33,7 @@
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = '#111';
+      ctx.fillStyle = '#111';
       hasInk = false;
     };
 
@@ -44,7 +45,12 @@
     const down = (e) => {
       drawing = true;
       prev = pos(e);
-      if (canvas.setPointerCapture) {
+      // Punkt setzen: auch bloßes Antippen hinterlässt sichtbare "Tinte"
+      ctx.beginPath();
+      ctx.arc(prev.x, prev.y, 1, 0, Math.PI * 2);
+      ctx.fill();
+      hasInk = true;
+      if (canvas.setPointerCapture && e.pointerId != null) {
         try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
       }
       e.preventDefault();
@@ -64,17 +70,44 @@
 
     const up = () => { drawing = false; prev = null; };
 
-    canvas.addEventListener('pointerdown', down);
-    canvas.addEventListener('pointermove', move);
-    canvas.addEventListener('pointerup', up);
-    canvas.addEventListener('pointercancel', up);
+    if (window.PointerEvent) {
+      canvas.addEventListener('pointerdown', down);
+      canvas.addEventListener('pointermove', move);
+      canvas.addEventListener('pointerup', up);
+      canvas.addEventListener('pointercancel', up);
+    } else {
+      // Fallback für ältere iPads ohne Pointer Events
+      const fromTouch = (fn) => (e) => {
+        const t = e.touches && e.touches[0];
+        if (!t) return;
+        fn({ clientX: t.clientX, clientY: t.clientY, preventDefault: () => e.preventDefault() });
+      };
+      canvas.addEventListener('touchstart', fromTouch(down), { passive: false });
+      canvas.addEventListener('touchmove', fromTouch(move), { passive: false });
+      canvas.addEventListener('touchend', up);
+      canvas.addEventListener('touchcancel', up);
+      canvas.addEventListener('mousedown', down);
+      canvas.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    }
 
     this.resize = resize;
     this.clear = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       hasInk = false;
     };
-    this.isEmpty = () => !hasInk;
+    // Nicht nur das Flag prüfen, sondern zur Sicherheit die echten Pixel:
+    // Was sichtbar auf dem Feld steht, darf nie als "leer" verworfen werden.
+    this.isEmpty = () => {
+      if (hasInk) return false;
+      try {
+        const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        for (let i = 3; i < d.length; i += 4) {
+          if (d[i] !== 0) return false;
+        }
+      } catch (e) { }
+      return true;
+    };
     this.toDataURL = () => canvas.toDataURL('image/png');
   }
 

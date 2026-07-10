@@ -226,6 +226,9 @@ button:hover {
     border-radius: 4px;
     background: #fff;
     touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .sig-field .sig-clear {
