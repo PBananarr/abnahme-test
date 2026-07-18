@@ -150,9 +150,110 @@ button:hover {
 #record-status {
     flex-basis: 100%;
     font-size: 11px;
-    color: #888;
+    color: #666; /* WCAG-Kontrast für kleine Schrift (auch bei Sonnenlicht lesbar) */
     text-align: right;
     min-height: 13px;
+}
+
+/* Hinweis unter "Als PDF erzeugen" (Selbstbeschreibungsfähigkeit) */
+.pdf-hint {
+    font-size: 0.85rem;
+    color: #666;
+    margin: 8px 0 0;
+}
+
+/* Leerzustands-Hinweis: nur sichtbar, solange ein Abschnitt keine Zeilen hat */
+.empty-hint {
+    display: none;
+    font-size: 0.85rem;
+    color: #666;
+    margin: 0 0 8px;
+}
+
+[id^="fields-container-"]:empty + .empty-hint {
+    display: block;
+}
+
+/* Checkliste im "Mehrere hinzufügen"-Dialog */
+.bulk-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 6px 16px;
+    margin-bottom: 15px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.bulk-list label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: normal;
+    min-height: 32px;
+}
+
+.bulk-list input[type="checkbox"] {
+    width: auto;
+}
+
+/* Schnellnavigation unten rechts (Abschnitts-Sprung + nach oben) */
+.quick-nav {
+    position: fixed;
+    right: 15px;
+    bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    z-index: 900;
+}
+
+.quick-nav-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 1.15rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    opacity: 0.92;
+}
+
+.quick-nav-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    padding: 8px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.quick-nav-menu button {
+    background: #f7faff;
+    color: #3b5370;
+    text-align: left;
+    min-height: 40px;
+}
+
+.quick-nav-menu button:hover {
+    background: #e3ecf7;
+    color: #3b5370;
+}
+
+/* Touch-Geräte: Tippflächen nach Apple-/Norm-Empfehlung (mind. 44px) */
+@media (pointer: coarse) {
+    button {
+        min-height: 44px;
+        padding: 10px 16px;
+    }
+
+    .field-selector select,
+    .record-bar select {
+        min-height: 44px;
+    }
 }
 
 /* Unterschriften-Dialog (nach "Als PDF erzeugen") */

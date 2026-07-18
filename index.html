@@ -68,8 +68,11 @@
       <div class="no-print" style="display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;">
         <!-- <button type="button" id="save-btn" class="submit-btn">Speichern</button> ###### wird vorerst nicht benötigt ###### -->
         <button type="button" id="pdf-btn">Als PDF erzeugen</button>
-        <button type="button" id="reset-btn">Zurücksetzen</button>
+        <!-- remove-btn: destruktive Aktion rot und rechts abgesetzt (Fehltipp-Schutz) -->
+        <button type="button" id="reset-btn" class="remove-btn">Zurücksetzen</button>
       </div>
+      <p class="pdf-hint no-print">Die PDF wird nach dem Erzeugen angezeigt – dort über „Teilen“
+        in <em>Dateien</em> sichern und unterschreiben.</p>
     </form>
 
     <div id="submitted" class="submitted-data" style="display:none;"></div>
@@ -78,9 +81,12 @@
   </div>
 
   <!-- Reihenfolge wichtig: erst libs, dann Daten, dann Logik, dann Vorgangsverwaltung -->
+  <!-- Unterschriften-Dialog bewusst deaktiviert (Mitarbeiter-Entscheidung Juli 2026):
+       Unterschrieben wird in der PDF-Ansicht über Apple Dateien + Markierung.
+       Zum Reaktivieren diese zwei Zeilen wieder einfügen (und im Service Worker cachen):
+       <script src="./vendor/pdfjs/pdf.min.js"></script>
+       <script src="./signature.js"></script> -->
   <script src="./vendor/pdf-lib.min.js"></script>
-  <script src="./vendor/pdfjs/pdf.min.js"></script>
-  <script src="./signature.js"></script>
   <script src="./form_data.js"></script>
   <script src="./form.js"></script>
   <script src="./records.js"></script>

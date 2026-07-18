@@ -18,9 +18,51 @@
   // Strukturänderungen (Zeile hinzugefügt/entfernt, Reset) an records.js melden -> Autosave
   const notifyChanged = () => document.dispatchEvent(new CustomEvent('abnahme:changed'));
 
+  // Neue Zeile in Sicht bringen und erstes Feld fokussieren (öffnet die iPad-Tastatur)
+  const focusFirstField = (rowEl) => {
+    const first = rowEl.querySelector('input:not([type="checkbox"]), textarea, select');
+    try { rowEl.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { }
+    if (first) first.focus({ preventScroll: true });
+  };
+
+  // Zeile entfernen; enthält sie bereits Eingaben, vorher rückfragen (Fehlertoleranz).
+  // Checkboxen/Selects zählen nicht als Eingabe (haben immer einen Standardwert).
+  const confirmRemove = (rowEl) => {
+    const hasContent = [...rowEl.querySelectorAll('input, textarea')].some(inp =>
+      inp.type !== 'checkbox' && inp.value.trim() !== '');
+    if (hasContent && !confirm('Diese Zeile enthält bereits Eingaben. Wirklich entfernen?')) return;
+    rowEl.remove();
+    notifyChanged();
+  };
+
+  // Datum ist praktisch immer "heute": leeres Datumsfeld vorbelegen (änderbar)
+  const ensureDefaultDatum = () => {
+    const inp = form.querySelector('input[name="datum"]');
+    if (inp && !inp.value) {
+      const d = new Date();
+      inp.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+  };
+
+  // Return-Taste springt zum nächsten Feld (in Textareas bleibt Enter = Zeilenumbruch)
+  form.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const t = e.target;
+    if (!t || t.tagName !== 'INPUT' || t.type === 'checkbox') return;
+    e.preventDefault();
+    const fields = [...form.querySelectorAll('input, select, textarea')]
+      .filter(x => !x.disabled && x.type !== 'checkbox' && x.offsetParent !== null);
+    const next = fields[fields.indexOf(t) + 1];
+    if (next) next.focus();
+    else t.blur();
+  });
+
   // iPad-/Tastatur-Hilfen + dezimale Eingaben
   const applyInputHints = (input, name, type) => {
     const nm = String(name || '').toLowerCase();
+
+    // Return-Taste zeigt auf der iPad-Tastatur "Weiter" (springt zum nächsten Feld)
+    if (input.tagName === 'INPUT') input.enterKeyHint = 'next';
 
     const isDecimal =
       /betrag|summe|rate|eur|stand/.test(nm) ||             // generisch: *betrag, *summe, *rate, *eur, *stand
@@ -117,10 +159,16 @@
     addBtn.textContent = '+';
     addBtn.dataset.section = String(idx);
 
+    const bulkBtn = el('button', 'bulk-btn');
+    bulkBtn.type = 'button';
+    bulkBtn.textContent = 'Mehrere hinzufügen';
+    bulkBtn.title = 'Mehrere Einträge auf einmal per Checkliste hinzufügen';
+
     wrap.appendChild(sel);
     wrap.appendChild(addBtn);
+    wrap.appendChild(bulkBtn);
 
-    return { ui: wrap, select: sel, addBtn };
+    return { ui: wrap, select: sel, addBtn, bulkBtn };
   };
 
   // ---------- Dynamische Zeile erzeugen (Klick auf "+" ODER Wiederherstellung) ----------
@@ -154,7 +202,7 @@
       const removeRoomBtn = el('button', 'remove-btn');
       removeRoomBtn.type = 'button';
       removeRoomBtn.textContent = 'Entfernen';
-      removeRoomBtn.addEventListener('click', () => { card.remove(); notifyChanged(); });
+      removeRoomBtn.addEventListener('click', () => confirmRemove(card));
 
       head.appendChild(strong);
       head.appendChild(removeRoomBtn);
@@ -205,7 +253,7 @@
       const rm = el('button', 'remove-btn');
       rm.type = 'button';
       rm.textContent = 'Entfernen';
-      rm.addEventListener('click', () => { wrap.remove(); notifyChanged(); });
+      rm.addEventListener('click', () => confirmRemove(wrap));
       wrap.appendChild(rm);
 
       container.appendChild(wrap);
@@ -232,11 +280,74 @@
     const rm = el('button', 'remove-btn');
     rm.type = 'button';
     rm.textContent = 'Entfernen';
-    rm.addEventListener('click', () => { row.remove(); notifyChanged(); });
+    rm.addEventListener('click', () => confirmRemove(row));
     row.appendChild(rm);
 
     container.appendChild(row);
     return row;
+  };
+
+  // ---------- Sammel-Hinzufügen: mehrere Zeilen auf einmal per Checkliste ----------
+  let bulkOverlay = null;
+  const openBulkDialog = (sectionIdx) => {
+    const section = sections[sectionIdx];
+    if (!section || !Array.isArray(section.options)) return;
+
+    if (bulkOverlay) bulkOverlay.remove();
+    bulkOverlay = el('div', 'sig-overlay no-print');
+
+    const dialog = el('div', 'sig-dialog');
+
+    const h2 = document.createElement('h2');
+    h2.textContent = section.title || 'Mehrere hinzufügen';
+    dialog.appendChild(h2);
+
+    const hint = el('p', 'sig-hint');
+    hint.textContent = 'Gewünschte Einträge ankreuzen – alle werden gemeinsam als leere Zeilen hinzugefügt.';
+    dialog.appendChild(hint);
+
+    const list = el('div', 'bulk-list');
+    section.options.forEach(opt => {
+      const lab = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = opt.name;
+      lab.appendChild(cb);
+      lab.appendChild(document.createTextNode(' ' + opt.label));
+      list.appendChild(lab);
+    });
+    dialog.appendChild(list);
+
+    const close = () => { bulkOverlay?.remove(); bulkOverlay = null; };
+
+    const actions = el('div', 'sig-actions');
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = 'Abbrechen';
+    cancel.addEventListener('click', close);
+
+    const ok = el('button', 'submit-btn');
+    ok.type = 'button';
+    ok.textContent = 'Hinzufügen';
+    ok.addEventListener('click', () => {
+      const chosen = [...list.querySelectorAll('input:checked')].map(c => c.value);
+      close();
+      if (!chosen.length) return;
+      let firstRow = null;
+      chosen.forEach(name => {
+        const r = buildDynamicRow(sectionIdx, name);
+        if (r && !firstRow) firstRow = r;
+      });
+      notifyChanged();
+      if (firstRow) focusFirstField(firstRow);
+    });
+
+    actions.appendChild(cancel);
+    actions.appendChild(ok);
+    dialog.appendChild(actions);
+
+    bulkOverlay.appendChild(dialog);
+    document.body.appendChild(bulkOverlay);
   };
 
   // ---------- Rendering ----------
@@ -254,19 +365,34 @@
 
     // Dynamische Optionen
     if (Array.isArray(section.options) && section.options.length) {
-      const { ui, select, addBtn } = makeAddFieldUI(section, i) || {};
+      const { ui, select, addBtn, bulkBtn } = makeAddFieldUI(section, i) || {};
       const container = el('div');
       container.id = `fields-container-${i}`;
 
-      if (ui) root.appendChild(ui);
+      // Liste zuerst, Auswahl darunter: der "+"-Knopf steht so immer direkt
+      // unter der zuletzt hinzugefügten Zeile (kein Hochscrollen mehr nötig)
       root.appendChild(container);
+
+      const emptyHint = el('p', 'empty-hint');
+      emptyHint.textContent = 'Noch nichts erfasst – unten auswählen und mit „+“ hinzufügen.';
+      root.appendChild(emptyHint);
+
+      if (ui) root.appendChild(ui);
 
       if (addBtn) {
         addBtn.addEventListener('click', () => {
           if (!select.value) return;
-          if (buildDynamicRow(i, select.value)) notifyChanged();
+          const row = buildDynamicRow(i, select.value);
+          if (row) {
+            notifyChanged();
+            focusFirstField(row);
+          }
           select.value = '';
         });
+      }
+
+      if (bulkBtn) {
+        bulkBtn.addEventListener('click', () => openBulkDialog(i));
       }
     }
   });
@@ -334,6 +460,7 @@
     });
     form.querySelector('#maengel_dynamic_wrap')?.remove();
     if (out) out.style.display = 'none';
+    ensureDefaultDatum();
   };
 
   const serializeState = () => {
@@ -389,6 +516,8 @@
       if (inp.type === 'checkbox') inp.checked = arr[idx] === 'on';
       else inp.value = arr[idx];
     });
+
+    ensureDefaultDatum();
   };
 
   // API für records.js (automatische Zwischenspeicherung + Vorgangsverwaltung)
@@ -398,12 +527,67 @@
     clearForm: clearFormState
   };
 
+  // Falls records.js nicht lädt: Datum trotzdem vorbelegen
+  ensureDefaultDatum();
+
   // ---------- Reset ----------
   document.getElementById('reset-btn')?.addEventListener('click', () => {
     if (!confirm('Alle Eingaben löschen?')) return;
     clearFormState();
     notifyChanged();
   });
+
+  // ---------- Schnellnavigation: Abschnitts-Sprungmenü + "nach oben" ----------
+  (function setupQuickNav() {
+    const headings = [...root.querySelectorAll('h2')];
+    if (!headings.length) return;
+
+    const nav = el('div', 'quick-nav no-print');
+
+    const menu = el('div', 'quick-nav-menu');
+    menu.style.display = 'none';
+    headings.forEach(h => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = h.textContent;
+      b.addEventListener('click', () => {
+        menu.style.display = 'none';
+        h.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      });
+      menu.appendChild(b);
+    });
+
+    const menuBtn = el('button', 'quick-nav-btn');
+    menuBtn.type = 'button';
+    menuBtn.textContent = '≡';
+    menuBtn.title = 'Zu Abschnitt springen';
+    menuBtn.setAttribute('aria-label', 'Zu Abschnitt springen');
+    menuBtn.addEventListener('click', () => {
+      menu.style.display = menu.style.display === 'none' ? '' : 'none';
+    });
+
+    const topBtn = el('button', 'quick-nav-btn');
+    topBtn.type = 'button';
+    topBtn.textContent = '▲';
+    topBtn.title = 'Zum Seitenanfang';
+    topBtn.setAttribute('aria-label', 'Zum Seitenanfang');
+    topBtn.addEventListener('click', () => {
+      menu.style.display = 'none';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    nav.appendChild(menu);
+    nav.appendChild(menuBtn);
+    nav.appendChild(topBtn);
+    document.body.appendChild(nav);
+
+    // Menü schließen, wenn außerhalb getippt wird
+    document.addEventListener('pointerdown', (e) => {
+      if (menu.style.display !== 'none' && !nav.contains(e.target)) {
+        menu.style.display = 'none';
+      }
+    });
+  })();
 
   // ---------- Echte PDF mit pdf-lib ----------
   document.getElementById('pdf-btn')?.addEventListener('click', async () => {
@@ -485,6 +669,21 @@
         const [y, m, d] = str.split('-');
         return `${d}.${m}.${y}`;
       };
+
+      // ---------- Vollständigkeits-Hinweis (nur Hinweis, kein Zwang) ----------
+      // Die Kernangaben aus "Allgemeine Daten" fehlen erfahrungsgemäß am teuersten,
+      // wenn die PDF erst einmal unterschrieben ist.
+      const allgemein = sections.find(s => s.title === 'Allgemeine Daten');
+      const fehlende = (allgemein?.fields || [])
+        .filter(f => !asStr(data[f.name]))
+        .map(f => '– ' + f.label);
+      if (fehlende.length) {
+        const weiter = confirm(
+          'Hinweis – folgende Angaben sind noch leer:\n\n' + fehlende.join('\n') +
+          '\n\nTrotzdem PDF erzeugen?'
+        );
+        if (!weiter) return;
+      }
 
 
       // ---- PDF anlegen
@@ -939,30 +1138,19 @@
         document.dispatchEvent(new CustomEvent('abnahme:pdf', { detail: { bytes: pdfBytes, filename } }));
       } catch (e) { }
 
-      // Bevorzugt das iOS-Teilen-Menü (Drucken / In Dateien sichern / Mail):
-      // die App bleibt dabei im Vordergrund und navigiert nicht zur PDF weg.
-      let ausgeliefert = false;
-      try {
-        const file = new File([pdfBytes], filename, { type: 'application/pdf' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: filename });
-          ausgeliefert = true;
-        }
-      } catch (e) {
-        // AbortError = Nutzer hat das Teilen-Menü bewusst geschlossen -> kein Zwangs-Download
-        if (e && e.name === 'AbortError') ausgeliefert = true;
-      }
-
-      if (!ausgeliefert) {
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = filename;
-        document.body.appendChild(a); a.click(); a.remove();
-        // Spät freigeben: falls Safari die PDF im selben Tab öffnet, muss die
-        // URL beim Zurückgehen noch gültig sein
-        setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) { } }, 60000);
-      }
+      // PDF direkt anzeigen/herunterladen (Mitarbeiter-Entscheidung Juli 2026):
+      // Safari zeigt die PDF in ganzer Ansicht; gespeichert und unterschrieben
+      // wird über das Teilen-Menü der PDF-Ansicht (Apple Dateien + Markierung).
+      // Der Formularstand ist davor gesichert; autocomplete="off" + der
+      // pageshow-Handler in records.js verhindern Datenverlust beim Zurückgehen.
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      // Bewusst KEIN revokeObjectURL: Safari muss die URL auch beim späteren
+      // Teilen aus der PDF-Ansicht noch auflösen können; der Speicher wird
+      // beim nächsten Seitenwechsel automatisch freigegeben.
     } catch (err) {
       console.error('PDF-Fehler:', err);
       alert('PDF-Erstellung fehlgeschlagen. Siehe Konsole für Details.');
